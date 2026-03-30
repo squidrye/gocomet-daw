@@ -1,8 +1,10 @@
 package com.ridehailing.core_api.driver
 
 import com.ridehailing.core_api.common.model.DriverLocation
+import com.ridehailing.core_api.driver.dto.DriverStatusResponse
 import com.ridehailing.core_api.driver.dto.LocationUpdateRequest
 import com.ridehailing.core_api.driver.dto.OfferResponse
+import com.ridehailing.core_api.driver.dto.RideActionResponse
 import com.ridehailing.core_api.driver.dto.StatusUpdateRequest
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.ResponseEntity
@@ -27,21 +29,22 @@ open class DriverController {
 
   /** Toggle driver online/offline */
   @PutMapping("/status")
-  fun updateStatus(@RequestBody request: StatusUpdateRequest): ResponseEntity<Map<String, Any?>> {
+  fun updateStatus(@RequestBody request: StatusUpdateRequest): ResponseEntity<DriverStatusResponse> {
     val driverId = getAuthUserId()
     val user = driverService.updateStatus(driverId, request)
-    val body = mapOf("driverStatus" to user.driverStatus, "userId" to user.id)
-    return ResponseEntity.ok(body)
+    val response = DriverStatusResponse().apply {
+      userId = user.id
+      driverStatus = user.driverStatus
+    }
+    return ResponseEntity.ok(response)
   }
 
   /** Poll for pending ride offer */
   @GetMapping("/offer")
-  fun getOffer(): ResponseEntity<Any> {
+  fun getOffer(): ResponseEntity<OfferResponse> {
     val driverId = getAuthUserId()
     val ride = driverService.getOffer(driverId)
-    if (ride == null) {
-      return ResponseEntity.noContent().build()
-    }
+      ?: return ResponseEntity.noContent().build()
     val response = OfferResponse().apply {
       rideId = ride.id
       status = ride.status
@@ -56,21 +59,28 @@ open class DriverController {
 
   /** Accept pending ride offer */
   @PostMapping("/offer/accept")
-  fun acceptOffer(): ResponseEntity<Map<String, Any?>> {
+  fun acceptOffer(): ResponseEntity<RideActionResponse> {
     val driverId = getAuthUserId()
     val ride = driverService.acceptOffer(driverId)
-    return ResponseEntity.ok(mapOf("rideId" to ride.id, "status" to ride.status))
+    val response = RideActionResponse().apply {
+      rideId = ride.id
+      status = ride.status
+    }
+    return ResponseEntity.ok(response)
   }
 
   /** Decline pending ride offer */
   @PostMapping("/offer/decline")
-  fun declineOffer(): ResponseEntity<Map<String, Any?>> {
+  fun declineOffer(): ResponseEntity<RideActionResponse> {
     val driverId = getAuthUserId()
     val ride = driverService.declineOffer(driverId)
-    return ResponseEntity.ok(mapOf("rideId" to ride.id, "status" to ride.status))
+    val response = RideActionResponse().apply {
+      rideId = ride.id
+      status = ride.status
+    }
+    return ResponseEntity.ok(response)
   }
 
-  /** Extract authenticated user ID from SecurityContext */
   private fun getAuthUserId(): UUID {
     return SecurityContextHolder.getContext().authentication.principal as UUID
   }

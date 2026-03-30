@@ -11,7 +11,7 @@
   <select id="getLatestByDriverId" resultType="com.ridehailing.core_api.common.model.DriverLocation">
     SELECT id, driver_id, latitude, longitude, created_at
     FROM driver_locations
-    WHERE driver_id = #{driverId}::uuid
+    WHERE driver_id = #{driverId}::uuid AND delete_info IS NULL
     ORDER BY created_at DESC
     LIMIT 1
   </select>
