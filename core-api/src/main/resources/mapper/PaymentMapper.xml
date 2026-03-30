@@ -4,14 +4,14 @@
 
   <insert id="insert" parameterType="com.ridehailing.core_api.common.model.Payment"
           useGeneratedKeys="true" keyColumn="id,created_at" keyProperty="id,createdAt">
-    INSERT INTO payments (ride_id, amount, transaction_id, status)
-    VALUES (#{rideId}::uuid, #{amount}, #{transactionId}, #{status})
+    INSERT INTO payments (ride_id, amount, transaction_id, status_type_id)
+    VALUES (#{rideId}::uuid, #{amount}, #{transactionId}, #{statusTypeId})
   </insert>
 
   <select id="getByRideId" resultType="com.ridehailing.core_api.common.model.Payment">
-    SELECT id, ride_id, amount, transaction_id, status, created_at
+    SELECT id, ride_id, amount, transaction_id, status_type_id, created_at
     FROM payments
-    WHERE ride_id = #{rideId}::uuid
+    WHERE ride_id = #{rideId}::uuid AND delete_info IS NULL
   </select>
 
 </mapper>

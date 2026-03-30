@@ -1,14 +1,15 @@
 package com.ridehailing.core_api.payment
 
 import com.ridehailing.core_api.common.exception.AppException
+import com.ridehailing.core_api.common.exception.AppExceptionTypes
 import com.ridehailing.core_api.common.model.Payment
+import com.ridehailing.core_api.common.model.PaymentStatus
 import com.ridehailing.core_api.common.model.RideStatus
 import com.ridehailing.core_api.payment.dto.PaymentRequest
 import com.ridehailing.core_api.payment.dto.PaymentResponse
 import com.ridehailing.core_api.ride.RideMapper
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import java.util.UUID
 
@@ -30,38 +31,20 @@ open class PaymentService {
   fun processPayment(riderId: UUID, request: PaymentRequest): PaymentResponse {
     log.info("processPayment - riderId=$riderId, rideId=${request.rideId}")
 
-    if (request.rideId == null) {
-      throw AppException(
-        status = HttpStatus.BAD_REQUEST,
-        message = "Validation failed",
-        details = listOf("rideId is required")
-      )
-    }
+    if (request.rideId == null) throw AppException(AppExceptionTypes.VALIDATION_FAILED, listOf("rideId is required"))
 
-    val ride = rideMapper.getById(request.rideId!!)
-      ?: throw AppException(status = HttpStatus.NOT_FOUND, message = "Ride not found")
+    val ride = rideMapper.getById(request.rideId!!) ?: throw AppException(AppExceptionTypes.RIDE_NOT_FOUND)
+    if (ride.riderId != riderId) throw AppException(AppExceptionTypes.PAYMENT_ACCESS_DENIED)
+    if (ride.status != RideStatus.COMPLETED) throw AppException(AppExceptionTypes.PAYMENT_RIDE_NOT_COMPLETED)
 
-    if (ride.riderId != riderId) {
-      throw AppException(status = HttpStatus.FORBIDDEN, message = "Access denied")
-    }
-
-    if (ride.status != RideStatus.COMPLETED) {
-      throw AppException(
-        status = HttpStatus.CONFLICT,
-        message = "Payment can only be processed for completed rides"
-      )
-    }
-
-    val amount = ride.finalFare
-      ?: throw AppException(status = HttpStatus.CONFLICT, message = "Ride has no final fare")
-
+    val amount = ride.finalFare ?: throw AppException(AppExceptionTypes.RIDE_NO_FINAL_FARE)
     val transactionId = pspStub.processPayment(amount)
 
     val payment = Payment().apply {
       this.rideId = ride.id
       this.amount = amount
       this.transactionId = transactionId
-      this.status = "SUCCESS"
+      setStatus(PaymentStatus.SUCCESS)
     }
     paymentMapper.insert(payment)
     log.info("processPayment - payment recorded id=${payment.id}, txn=$transactionId")
@@ -71,7 +54,7 @@ open class PaymentService {
       this.rideId = payment.rideId
       this.amount = payment.amount
       this.transactionId = payment.transactionId
-      this.status = payment.status
+      this.status = payment.status?.name
     }
   }
 }
