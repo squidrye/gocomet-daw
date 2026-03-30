@@ -23,6 +23,7 @@ open class Ride {
   var cancelledAt: Instant? = null
   var createdAt: Instant? = null
   var updatedAt: Instant? = null
+  var searchRadiusKm: Double? = 5.0
 
   val status: RideStatus? get() = RideStatus.fromId(statusTypeId)
 

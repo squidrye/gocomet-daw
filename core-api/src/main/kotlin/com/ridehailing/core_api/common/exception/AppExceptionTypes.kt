@@ -30,12 +30,13 @@ object AppExceptionTypes {
   val RIDE_CANCEL_FORBIDDEN = Triple(23, HttpStatus.FORBIDDEN, "Only the rider can cancel this ride")
   val NO_DRIVERS_AVAILABLE = Triple(24, HttpStatus.OK, "No drivers available nearby")
   val RIDE_ALREADY_ACTIVE = Triple(25, HttpStatus.CONFLICT, "You already have an active ride")
+  val RIDE_ALREADY_TAKEN = Triple(26, HttpStatus.CONFLICT, "This ride has already been accepted by another driver")
+  val RIDE_UNPAID_EXISTS = Triple(27, HttpStatus.CONFLICT, "You have an unpaid completed ride. Please pay before requesting a new one.")
 
   // Driver
   val DRIVER_NOT_FOUND = Triple(30, HttpStatus.NOT_FOUND, "Driver not found")
   val DRIVER_INVALID_TRANSITION = Triple(31, HttpStatus.CONFLICT, "Invalid driver state transition: %s → %s")
-  val DRIVER_NOT_LOCKED = Triple(32, HttpStatus.CONFLICT, "Driver is not in LOCKED state")
-  val NO_PENDING_OFFER = Triple(33, HttpStatus.NOT_FOUND, "No pending offer found")
+  val DRIVER_NOT_AVAILABLE = Triple(32, HttpStatus.CONFLICT, "Driver is not in AVAILABLE state")
   val DRIVER_LOCATION_UNAVAILABLE = Triple(34, HttpStatus.NOT_FOUND, "Driver location not available")
   val DRIVER_LOCATION_FORBIDDEN =
     Triple(35, HttpStatus.FORBIDDEN, "Driver location only available for ACCEPTED or IN_PROGRESS rides")

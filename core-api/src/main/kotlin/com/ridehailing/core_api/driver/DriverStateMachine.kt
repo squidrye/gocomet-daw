@@ -7,8 +7,7 @@ object DriverStateMachine {
 
   private val transitions = mapOf(
     DriverStatus.OFFLINE to setOf(DriverStatus.AVAILABLE),
-    DriverStatus.AVAILABLE to setOf(DriverStatus.OFFLINE, DriverStatus.LOCKED),
-    DriverStatus.LOCKED to setOf(DriverStatus.ON_TRIP, DriverStatus.AVAILABLE),
+    DriverStatus.AVAILABLE to setOf(DriverStatus.OFFLINE, DriverStatus.ON_TRIP),
     DriverStatus.ON_TRIP to setOf(DriverStatus.AVAILABLE),
   )
 
