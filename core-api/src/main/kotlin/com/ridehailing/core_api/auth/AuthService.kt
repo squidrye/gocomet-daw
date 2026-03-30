@@ -4,13 +4,14 @@ import com.ridehailing.core_api.auth.dto.AuthResponse
 import com.ridehailing.core_api.auth.dto.LoginRequest
 import com.ridehailing.core_api.auth.dto.RegisterRequest
 import com.ridehailing.core_api.common.exception.AppException
+import com.ridehailing.core_api.common.exception.AppExceptionTypes
 import com.ridehailing.core_api.common.model.User
 import com.ridehailing.core_api.config.JwtService
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.http.HttpStatus
-import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 open class AuthService {
@@ -27,6 +28,7 @@ open class AuthService {
   private lateinit var passwordEncoder: PasswordEncoder
 
   /** Register a new rider or driver */
+  @Transactional
   fun register(request: RegisterRequest): AuthResponse {
     log.info("register - email=${request.email}, role=${request.role}")
 
@@ -35,32 +37,21 @@ open class AuthService {
     if (request.password.isNullOrBlank()) errors.add("password is required")
     else if (request.password!!.length < 8) errors.add("password must be at least 8 characters")
     if (request.role == null) errors.add("role is required")
-    if (errors.isNotEmpty()) {
-      throw AppException(
-        status = HttpStatus.BAD_REQUEST,
-        message = "Validation failed",
-        details = errors
-      )
-    }
+    if (errors.isNotEmpty()) throw AppException(AppExceptionTypes.VALIDATION_FAILED, errors)
 
-    val existing = authMapper.getByEmail(request.email!!)
-    if (existing != null) {
-      throw AppException(
-        status = HttpStatus.CONFLICT,
-        message = "Email already registered"
-      )
+    if (authMapper.getByEmail(request.email!!) != null) {
+      throw AppException(AppExceptionTypes.EMAIL_ALREADY_EXISTS)
     }
 
     val user = User().apply {
       email = request.email
       passwordHash = passwordEncoder.encode(request.password)
-      role = request.role
+      setRole(request.role!!)
     }
     authMapper.insert(user)
-
-    val token = jwtService.generateToken(user.id!!, user.role!!)
     log.info("register - created userId=${user.id}")
 
+    val token = jwtService.generateToken(user.id!!, user.role!!)
     return AuthResponse().apply {
       this.token = token
       this.userId = user.id
@@ -75,30 +66,17 @@ open class AuthService {
     val errors = mutableListOf<String>()
     if (request.email.isNullOrBlank()) errors.add("email is required")
     if (request.password.isNullOrBlank()) errors.add("password is required")
-    if (errors.isNotEmpty()) {
-      throw AppException(
-        status = HttpStatus.BAD_REQUEST,
-        message = "Validation failed",
-        details = errors
-      )
-    }
+    if (errors.isNotEmpty()) throw AppException(AppExceptionTypes.VALIDATION_FAILED, errors)
 
     val user = authMapper.getByEmail(request.email!!)
-      ?: throw AppException(
-        status = HttpStatus.UNAUTHORIZED,
-        message = "Invalid credentials"
-      )
+      ?: throw AppException(AppExceptionTypes.INVALID_CREDENTIALS)
 
     if (!passwordEncoder.matches(request.password, user.passwordHash)) {
-      throw AppException(
-        status = HttpStatus.UNAUTHORIZED,
-        message = "Invalid credentials"
-      )
+      throw AppException(AppExceptionTypes.INVALID_CREDENTIALS)
     }
 
-    val token = jwtService.generateToken(user.id!!, user.role!!)
     log.info("login - authenticated userId=${user.id}")
-
+    val token = jwtService.generateToken(user.id!!, user.role!!)
     return AuthResponse().apply {
       this.token = token
       this.userId = user.id

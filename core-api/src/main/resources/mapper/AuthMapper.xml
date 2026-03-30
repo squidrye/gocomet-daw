@@ -4,36 +4,32 @@
 
   <insert id="insert" parameterType="com.ridehailing.core_api.common.model.User"
           useGeneratedKeys="true" keyColumn="id,created_at,updated_at" keyProperty="id,createdAt,updatedAt">
-    INSERT INTO users (email, password_hash, role, driver_status)
+    INSERT INTO users (email, password_hash, role_type_id, driver_status_type_id)
     VALUES (
       lower(#{email}),
       #{passwordHash},
-      #{role},
-      <if test="role.name() == 'DRIVER'">
-        'OFFLINE'
-      </if>
-      <if test="role.name() != 'DRIVER'">
-        NULL
-      </if>
+      #{roleTypeId},
+      <if test="roleTypeId == 2">3</if>
+      <if test="roleTypeId != 2">NULL</if>
     )
   </insert>
 
   <select id="getByEmail" resultType="com.ridehailing.core_api.common.model.User">
-    SELECT id, email, password_hash, role, driver_status, created_at, updated_at
+    SELECT id, email, password_hash, role_type_id, driver_status_type_id, created_at, updated_at
     FROM users
-    WHERE lower(email) = lower(#{email})
+    WHERE lower(email) = lower(#{email}) AND delete_info IS NULL
   </select>
 
   <select id="getById" resultType="com.ridehailing.core_api.common.model.User">
-    SELECT id, email, password_hash, role, driver_status, created_at, updated_at
+    SELECT id, email, password_hash, role_type_id, driver_status_type_id, created_at, updated_at
     FROM users
-    WHERE id = #{id}::uuid
+    WHERE id = #{id}::uuid AND delete_info IS NULL
   </select>
 
   <update id="updateDriverStatus" parameterType="com.ridehailing.core_api.common.model.User">
     UPDATE users
-    SET driver_status = #{driverStatus}, updated_at = now()
-    WHERE id = #{id}::uuid
+    SET driver_status_type_id = #{driverStatusTypeId}, updated_at = now()
+    WHERE id = #{id}::uuid AND delete_info IS NULL
   </update>
 
 </mapper>
