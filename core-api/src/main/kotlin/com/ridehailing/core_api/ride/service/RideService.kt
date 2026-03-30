@@ -3,6 +3,7 @@ package com.ridehailing.core_api.ride
 import com.ridehailing.core_api.auth.AuthMapper
 import com.ridehailing.core_api.common.exception.AppException
 import com.ridehailing.core_api.common.exception.AppExceptionTypes
+import com.ridehailing.core_api.common.util.IdempotencyHash
 import com.ridehailing.core_api.common.model.Ride
 import com.ridehailing.core_api.common.model.RideStatus
 import com.ridehailing.core_api.ride.dto.CreateRideRequest
@@ -75,6 +76,7 @@ open class RideService {
       setStatus(RideStatus.REQUESTED)
       this.estimatedFare = estimatedFare
       this.surgeMultiplier = surgeMultiplier
+      this.hash = IdempotencyHash.generate(riderId, request.pickupLat, request.pickupLng, request.dropoffLat, request.dropoffLng)
     }
     rideMapper.insert(ride)
     log.info("createRide - ride created id=${ride.id}")

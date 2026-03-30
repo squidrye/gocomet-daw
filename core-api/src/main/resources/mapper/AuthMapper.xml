@@ -4,7 +4,7 @@
 
   <insert id="insert" parameterType="com.ridehailing.core_api.common.model.User"
           useGeneratedKeys="true" keyColumn="id,created_at,updated_at" keyProperty="id,createdAt,updatedAt">
-    INSERT INTO users (email, password_hash, role_type_id, driver_status_type_id, name, vehicle_make)
+    INSERT INTO users (email, password_hash, role_type_id, driver_status_type_id, name, vehicle_make, hash)
     VALUES (
       lower(#{email}),
       #{passwordHash},
@@ -12,7 +12,8 @@
       <if test="roleTypeId == 2">3</if>
       <if test="roleTypeId != 2">NULL</if>,
       #{name},
-      #{vehicleMake}
+      #{vehicleMake},
+      #{hash}
     )
   </insert>
 

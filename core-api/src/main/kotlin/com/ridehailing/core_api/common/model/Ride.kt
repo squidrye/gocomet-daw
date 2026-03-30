@@ -25,6 +25,7 @@ open class Ride {
   var updatedAt: Instant? = null
   var searchRadiusKm: Double? = 5.0
   var surgeMultiplier: Double? = 1.0
+  var hash: String? = null
 
   val status: RideStatus? get() = RideStatus.fromId(statusTypeId)
 

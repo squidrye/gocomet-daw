@@ -3,6 +3,7 @@ package com.ridehailing.core_api.auth
 import com.ridehailing.core_api.auth.dto.AuthResponse
 import com.ridehailing.core_api.auth.dto.LoginRequest
 import com.ridehailing.core_api.auth.dto.RegisterRequest
+import com.ridehailing.core_api.common.util.IdempotencyHash
 import com.ridehailing.core_api.common.exception.AppException
 import com.ridehailing.core_api.common.exception.AppExceptionTypes
 import com.ridehailing.core_api.common.model.Role
@@ -52,6 +53,7 @@ open class AuthService {
       setRole(request.role!!)
       name = request.name
       vehicleMake = request.vehicleMake
+      hash = IdempotencyHash.generate(request.email)
     }
     authMapper.insert(user)
     log.info("register - created userId=${user.id}")

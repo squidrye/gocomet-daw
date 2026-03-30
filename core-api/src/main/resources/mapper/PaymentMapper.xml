@@ -4,8 +4,9 @@
 
   <insert id="insert" parameterType="com.ridehailing.core_api.common.model.Payment"
           useGeneratedKeys="true" keyColumn="id,created_at" keyProperty="id,createdAt">
-    INSERT INTO payments (ride_id, amount, transaction_id, status_type_id)
-    VALUES (#{rideId}::uuid, #{amount}, #{transactionId}, #{statusTypeId})
+    INSERT INTO payments (ride_id, amount, transaction_id, status_type_id, hash)
+    VALUES (#{rideId}::uuid, #{amount}, #{transactionId}, #{statusTypeId}, #{hash})
+    ON CONFLICT (hash) WHERE delete_info IS NULL DO NOTHING
   </insert>
 
   <select id="getByRideId" resultType="com.ridehailing.core_api.common.model.Payment">

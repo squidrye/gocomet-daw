@@ -3,6 +3,7 @@ package com.ridehailing.core_api.driver
 import com.ridehailing.core_api.auth.AuthMapper
 import com.ridehailing.core_api.common.exception.AppException
 import com.ridehailing.core_api.common.exception.AppExceptionTypes
+import com.ridehailing.core_api.common.util.IdempotencyHash
 import com.ridehailing.core_api.common.model.DriverLocation
 import com.ridehailing.core_api.common.model.DriverStatus
 import com.ridehailing.core_api.common.model.RideDecline
@@ -209,6 +210,7 @@ open class DriverService {
     val decline = RideDecline().apply {
       this.rideId = rideId
       this.driverId = driverId
+      this.hash = IdempotencyHash.generate(rideId, driverId)
     }
     rideDeclineMapper.insert(decline)
     log.info("declineRide - recorded decline for ride $rideId by driver $driverId")

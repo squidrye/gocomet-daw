@@ -14,6 +14,7 @@ open class Payment {
   var statusTypeId: Int? = null
 
   var createdAt: Instant? = null
+  var hash: String? = null
 
   val status: PaymentStatus? get() = PaymentStatus.fromId(statusTypeId)
 

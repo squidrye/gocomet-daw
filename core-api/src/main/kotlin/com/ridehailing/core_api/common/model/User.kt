@@ -17,6 +17,7 @@ open class User {
 
   var createdAt: Instant? = null
   var updatedAt: Instant? = null
+  var hash: String? = null
 
   val role: Role? get() = Role.fromId(roleTypeId)
   val driverStatus: DriverStatus? get() = DriverStatus.fromId(driverStatusTypeId)

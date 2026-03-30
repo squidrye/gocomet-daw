@@ -8,4 +8,5 @@ open class RideDecline {
   var rideId: UUID? = null
   var driverId: UUID? = null
   var createdAt: Instant? = null
+  var hash: String? = null
 }

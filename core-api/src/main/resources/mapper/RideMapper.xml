@@ -4,12 +4,13 @@
 
   <insert id="insert" parameterType="com.ridehailing.core_api.common.model.Ride"
           useGeneratedKeys="true" keyColumn="id,created_at,updated_at" keyProperty="id,createdAt,updatedAt">
-    INSERT INTO rides (rider_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, status_type_id, estimated_fare, surge_multiplier)
+    INSERT INTO rides (rider_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, status_type_id, estimated_fare, surge_multiplier, hash)
     VALUES (
       #{riderId}::uuid,
       #{pickupLat}, #{pickupLng}, #{dropoffLat}, #{dropoffLng},
-      #{statusTypeId}, #{estimatedFare}, #{surgeMultiplier}
+      #{statusTypeId}, #{estimatedFare}, #{surgeMultiplier}, #{hash}
     )
+    ON CONFLICT (hash) WHERE delete_info IS NULL DO NOTHING
   </insert>
 
   <select id="getById" resultType="com.ridehailing.core_api.common.model.Ride">

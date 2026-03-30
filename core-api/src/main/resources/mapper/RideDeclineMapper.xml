@@ -4,8 +4,9 @@
 
   <insert id="insert" parameterType="com.ridehailing.core_api.common.model.RideDecline"
           useGeneratedKeys="true" keyColumn="id,created_at" keyProperty="id,createdAt">
-    INSERT INTO ride_declines (ride_id, driver_id)
-    VALUES (#{rideId}::uuid, #{driverId}::uuid)
+    INSERT INTO ride_declines (ride_id, driver_id, hash)
+    VALUES (#{rideId}::uuid, #{driverId}::uuid, #{hash})
+    ON CONFLICT (hash) WHERE delete_info IS NULL DO NOTHING
   </insert>
 
   <select id="getDeclinedRideIdsForDriver" resultType="java.util.UUID">

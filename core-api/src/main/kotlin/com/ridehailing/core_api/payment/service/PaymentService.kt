@@ -5,6 +5,7 @@ import com.ridehailing.core_api.common.exception.AppExceptionTypes
 import com.ridehailing.core_api.common.model.Payment
 import com.ridehailing.core_api.common.model.PaymentStatus
 import com.ridehailing.core_api.common.model.RideStatus
+import com.ridehailing.core_api.common.util.IdempotencyHash
 import com.ridehailing.core_api.payment.dto.PaymentRequest
 import com.ridehailing.core_api.payment.dto.PaymentResponse
 import com.ridehailing.core_api.ride.RideMapper
@@ -45,6 +46,7 @@ open class PaymentService {
       this.amount = amount
       this.transactionId = transactionId
       setStatus(PaymentStatus.SUCCESS)
+      this.hash = IdempotencyHash.generate(ride.id)
     }
     paymentMapper.insert(payment)
     log.info("processPayment - payment recorded id=${payment.id}, txn=$transactionId")
