@@ -3,13 +3,15 @@ package com.ridehailing.core_api.driver
 import com.ridehailing.core_api.common.model.DriverLocation
 import com.ridehailing.core_api.driver.dto.DriverStatusResponse
 import com.ridehailing.core_api.driver.dto.LocationUpdateRequest
-import com.ridehailing.core_api.driver.dto.OfferResponse
 import com.ridehailing.core_api.driver.dto.RideActionResponse
 import com.ridehailing.core_api.driver.dto.StatusUpdateRequest
+import com.ridehailing.core_api.ride.RideDispatchService
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import java.util.UUID
 
 @RestController
@@ -18,6 +20,9 @@ open class DriverController {
 
   @Autowired
   private lateinit var driverService: DriverService
+
+  @Autowired
+  private lateinit var rideDispatchService: RideDispatchService
 
   /** Update driver's current location */
   @PutMapping("/location")
@@ -39,46 +44,33 @@ open class DriverController {
     return ResponseEntity.ok(response)
   }
 
-  /** Poll for pending ride offer */
-  @GetMapping("/offer")
-  fun getOffer(): ResponseEntity<OfferResponse> {
+  /** SSE stream for available rides near this driver */
+  @GetMapping("/rides/stream", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
+  fun streamAvailableRides(): SseEmitter {
     val driverId = getAuthUserId()
-    val ride = driverService.getOffer(driverId)
-      ?: return ResponseEntity.noContent().build()
-    val response = OfferResponse().apply {
-      rideId = ride.id
-      status = ride.status
-      pickupLat = ride.pickupLat
-      pickupLng = ride.pickupLng
-      dropoffLat = ride.dropoffLat
-      dropoffLng = ride.dropoffLng
-      estimatedFare = ride.estimatedFare
-    }
-    return ResponseEntity.ok(response)
+    val emitter = rideDispatchService.registerDriver(driverId)
+    rideDispatchService.notifyDriverOnConnect(driverId)
+    return emitter
   }
 
-  /** Accept pending ride offer */
-  @PostMapping("/offer/accept")
-  fun acceptOffer(): ResponseEntity<RideActionResponse> {
+  /** Accept a ride */
+  @PostMapping("/rides/{rideId}/accept")
+  fun acceptRide(@PathVariable rideId: UUID): ResponseEntity<RideActionResponse> {
     val driverId = getAuthUserId()
-    val ride = driverService.acceptOffer(driverId)
+    val ride = driverService.acceptRide(driverId, rideId)
     val response = RideActionResponse().apply {
-      rideId = ride.id
+      this.rideId = ride.id
       status = ride.status
     }
     return ResponseEntity.ok(response)
   }
 
-  /** Decline pending ride offer */
-  @PostMapping("/offer/decline")
-  fun declineOffer(): ResponseEntity<RideActionResponse> {
+  /** Decline a ride */
+  @PostMapping("/rides/{rideId}/decline")
+  fun declineRide(@PathVariable rideId: UUID): ResponseEntity<Void> {
     val driverId = getAuthUserId()
-    val ride = driverService.declineOffer(driverId)
-    val response = RideActionResponse().apply {
-      rideId = ride.id
-      status = ride.status
-    }
-    return ResponseEntity.ok(response)
+    driverService.declineRide(driverId, rideId)
+    return ResponseEntity.noContent().build()
   }
 
   private fun getAuthUserId(): UUID {
