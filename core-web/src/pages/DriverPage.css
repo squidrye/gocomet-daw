@@ -140,3 +140,82 @@
 }
 
 .btn-text:hover { color: #111; }
+
+/* Ride list styles */
+.rides-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rides-list h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.ride-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ride-detail {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.ride-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn-sm {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.ride-actions .btn-sm {
+  flex: 1;
+}
+
+.hint {
+  color: #9ca3af;
+  font-size: 14px;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.badge-driver-on-trip { background: #fef3c7; color: #92400e; }
+
+.badge-trip {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.trip-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.trip-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.trip-actions {
+  display: flex;
+  gap: 8px;
+}

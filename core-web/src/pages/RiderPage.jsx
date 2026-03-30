@@ -39,7 +39,7 @@ export default function RiderPage() {
   const sseRef = useRef(null)
   const pollRef = useRef(null)
 
-  const isCancellable = ride && ['REQUESTED', 'MATCHED', 'ACCEPTED'].includes(ride.status)
+  const isCancellable = ride && ['REQUESTED', 'ACCEPTED'].includes(ride.status)
   const showPay = ride && ride.status === 'COMPLETED' && !ride.paid
 
   function handleMapClick(latlng) {
