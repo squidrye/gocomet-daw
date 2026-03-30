@@ -20,5 +20,6 @@ interface RideMapper {
     @Param("excludeDriverIds") excludeDriverIds: List<UUID>?
   ): DriverLocation?
   fun getMatchedRideForDriver(@Param("driverId") driverId: UUID): Ride?
+  fun getActiveRideForRider(@Param("riderId") riderId: UUID): Ride?
   fun updateTripTimes(ride: Ride): Int
 }

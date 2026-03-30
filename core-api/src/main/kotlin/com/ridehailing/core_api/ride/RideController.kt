@@ -24,6 +24,14 @@ open class RideController {
     return ResponseEntity.status(HttpStatus.CREATED).body(response)
   }
 
+  /** Get active ride for current rider */
+  @GetMapping("/active")
+  fun getActiveRide(): ResponseEntity<RideResponse> {
+    val riderId = getAuthUserId()
+    val response = rideService.getActiveRide(riderId) ?: return ResponseEntity.noContent().build()
+    return ResponseEntity.ok(response)
+  }
+
   /** Get ride details */
   @GetMapping("/{id}")
   fun getRide(@PathVariable id: UUID): ResponseEntity<RideResponse> {

@@ -4,54 +4,69 @@
 
   <insert id="insert" parameterType="com.ridehailing.core_api.common.model.Ride"
           useGeneratedKeys="true" keyColumn="id,created_at,updated_at" keyProperty="id,createdAt,updatedAt">
-    INSERT INTO rides (rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, status, estimated_fare)
+    INSERT INTO rides (rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, status_type_id, estimated_fare)
     VALUES (
       #{riderId}::uuid,
       <if test="driverId != null">#{driverId}::uuid</if>
       <if test="driverId == null">NULL</if>,
       #{pickupLat}, #{pickupLng}, #{dropoffLat}, #{dropoffLng},
-      #{status}, #{estimatedFare}
+      #{statusTypeId}, #{estimatedFare}
     )
   </insert>
 
   <select id="getById" resultType="com.ridehailing.core_api.common.model.Ride">
     SELECT id, rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
-           status, estimated_fare, final_fare, started_at, completed_at, cancelled_at,
+           status_type_id, estimated_fare, final_fare, started_at, completed_at, cancelled_at,
            created_at, updated_at
     FROM rides
-    WHERE id = #{id}::uuid
+    WHERE id = #{id}::uuid AND delete_info IS NULL
   </select>
 
   <update id="updateStatus" parameterType="com.ridehailing.core_api.common.model.Ride">
     UPDATE rides
-    SET status = #{status},
-        cancelled_at = #{cancelledAt},
-        updated_at = now()
-    WHERE id = #{id}::uuid
+    SET status_type_id = #{statusTypeId},
+        cancelled_at   = #{cancelledAt},
+        updated_at     = now()
+    WHERE id = #{id}::uuid AND delete_info IS NULL
   </update>
 
   <update id="updateDriver" parameterType="com.ridehailing.core_api.common.model.Ride">
     UPDATE rides
-    SET driver_id = #{driverId}::uuid, status = #{status}, updated_at = now()
-    WHERE id = #{id}::uuid
+    SET driver_id      = <if test="driverId != null">#{driverId}::uuid</if><if test="driverId == null">NULL</if>,
+        status_type_id = #{statusTypeId},
+        updated_at     = now()
+    WHERE id = #{id}::uuid AND delete_info IS NULL
   </update>
 
   <update id="updateFare" parameterType="com.ridehailing.core_api.common.model.Ride">
     UPDATE rides
     SET final_fare = #{finalFare}, updated_at = now()
-    WHERE id = #{id}::uuid
+    WHERE id = #{id}::uuid AND delete_info IS NULL
   </update>
 
+  <update id="updateTripTimes" parameterType="com.ridehailing.core_api.common.model.Ride">
+    UPDATE rides
+    SET status_type_id = #{statusTypeId},
+        started_at     = #{startedAt},
+        completed_at   = #{completedAt},
+        final_fare     = #{finalFare},
+        updated_at     = now()
+    WHERE id = #{id}::uuid AND delete_info IS NULL
+  </update>
+
+  <!-- AVAILABLE = type id 4 -->
   <select id="findNearestDriver" resultType="com.ridehailing.core_api.common.model.DriverLocation">
     SELECT dl.driver_id, dl.latitude, dl.longitude, dl.created_at
     FROM driver_locations dl
     INNER JOIN (
       SELECT driver_id, MAX(created_at) AS max_created
       FROM driver_locations
+      WHERE delete_info IS NULL
       GROUP BY driver_id
     ) latest ON dl.driver_id = latest.driver_id AND dl.created_at = latest.max_created
-    INNER JOIN users u ON u.id = dl.driver_id AND u.driver_status = 'AVAILABLE'
-    WHERE (6371 * acos(
+    INNER JOIN users u ON u.id = dl.driver_id AND u.driver_status_type_id = 4 AND u.delete_info IS NULL
+    WHERE dl.delete_info IS NULL
+      AND (6371 * acos(
         cos(radians(#{pickupLat})) * cos(radians(dl.latitude))
         * cos(radians(dl.longitude) - radians(#{pickupLng}))
         + sin(radians(#{pickupLat})) * sin(radians(dl.latitude))
@@ -70,22 +85,24 @@
     LIMIT 1
   </select>
 
-  <update id="updateTripTimes" parameterType="com.ridehailing.core_api.common.model.Ride">
-    UPDATE rides
-    SET status = #{status},
-        started_at = #{startedAt},
-        completed_at = #{completedAt},
-        final_fare = #{finalFare},
-        updated_at = now()
-    WHERE id = #{id}::uuid
-  </update>
-
+  <!-- MATCHED = type id 8 -->
   <select id="getMatchedRideForDriver" resultType="com.ridehailing.core_api.common.model.Ride">
     SELECT id, rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
-           status, estimated_fare, final_fare, started_at, completed_at, cancelled_at,
+           status_type_id, estimated_fare, final_fare, started_at, completed_at, cancelled_at,
            created_at, updated_at
     FROM rides
-    WHERE driver_id = #{driverId}::uuid AND status = 'MATCHED'
+    WHERE driver_id = #{driverId}::uuid AND status_type_id = 8 AND delete_info IS NULL
+    LIMIT 1
+  </select>
+
+  <!-- Active ride: REQUESTED(7), MATCHED(8), ACCEPTED(9), IN_PROGRESS(10) -->
+  <select id="getActiveRideForRider" resultType="com.ridehailing.core_api.common.model.Ride">
+    SELECT id, rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+           status_type_id, estimated_fare, final_fare, started_at, completed_at, cancelled_at,
+           created_at, updated_at
+    FROM rides
+    WHERE rider_id = #{riderId}::uuid AND status_type_id IN (7, 8, 9, 10) AND delete_info IS NULL
+    ORDER BY created_at DESC
     LIMIT 1
   </select>
 
