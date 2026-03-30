@@ -5,12 +5,13 @@ import com.ridehailing.core_api.common.exception.AppException
 import com.ridehailing.core_api.common.exception.AppExceptionTypes
 import com.ridehailing.core_api.common.model.DriverLocation
 import com.ridehailing.core_api.common.model.DriverStatus
-import com.ridehailing.core_api.common.model.Ride
+import com.ridehailing.core_api.common.model.RideDecline
 import com.ridehailing.core_api.common.model.RideStatus
 import com.ridehailing.core_api.common.model.User
 import com.ridehailing.core_api.driver.dto.LocationUpdateRequest
 import com.ridehailing.core_api.driver.dto.StatusUpdateRequest
-import com.ridehailing.core_api.ride.MatchingService
+import com.ridehailing.core_api.ride.RideDeclineMapper
+import com.ridehailing.core_api.ride.RideDispatchService
 import com.ridehailing.core_api.ride.RideMapper
 import com.ridehailing.core_api.ride.RideStateMachine
 import com.ridehailing.core_api.sse.SSEService
@@ -36,7 +37,10 @@ open class DriverService {
   private lateinit var rideMapper: RideMapper
 
   @Autowired
-  private lateinit var matchingService: MatchingService
+  private lateinit var rideDeclineMapper: RideDeclineMapper
+
+  @Autowired
+  private lateinit var rideDispatchService: RideDispatchService
 
   @Autowired
   private lateinit var sseService: SSEService
@@ -60,6 +64,12 @@ open class DriverService {
     }
     driverLocationMapper.insert(location)
     log.debug("updateLocation - stored location id=${location.id}")
+
+    // If driver is connected to dispatch SSE, refresh their available rides
+    if (rideDispatchService.isDriverConnected(driverId)) {
+      rideDispatchService.notifyDriver(driverId)
+    }
+
     return location
   }
 
@@ -79,6 +89,11 @@ open class DriverService {
     user.setDriverStatus(request.status)
     authMapper.updateDriverStatus(user)
     log.info("updateStatus - driver $driverId transitioned $current -> ${request.status}")
+
+    if (request.status == DriverStatus.OFFLINE) {
+      rideDispatchService.removeDriver(driverId)
+    }
+
     return user
   }
 
@@ -92,69 +107,61 @@ open class DriverService {
     return driverLocationMapper.getLatestByDriverId(driverId)
   }
 
-  /** Get pending ride offer for this driver */
-  fun getOffer(driverId: UUID): Ride? {
-    log.info("getOffer - driverId=$driverId")
-    return rideMapper.getMatchedRideForDriver(driverId)
-  }
-
-  /** Accept a pending ride offer */
+  /** Accept a ride — REQUESTED → ACCEPTED, driver → ON_TRIP */
   @Transactional
-  fun acceptOffer(driverId: UUID): Ride {
-    log.info("acceptOffer - driverId=$driverId")
+  fun acceptRide(driverId: UUID, rideId: UUID): com.ridehailing.core_api.common.model.Ride {
+    log.info("acceptRide - driverId=$driverId, rideId=$rideId")
     val driver = getDriverById(driverId)
 
-    if (driver.driverStatus != DriverStatus.LOCKED) throw AppException(AppExceptionTypes.DRIVER_NOT_LOCKED)
-
-    val ride = rideMapper.getMatchedRideForDriver(driverId) ?: throw AppException(AppExceptionTypes.NO_PENDING_OFFER)
-
-    if (!RideStateMachine.canTransition(ride.status!!, RideStatus.ACCEPTED)) {
-      throw AppException(AppExceptionTypes.RIDE_INVALID_TRANSITION, ride.status, RideStatus.ACCEPTED)
+    if (driver.driverStatus != DriverStatus.AVAILABLE) {
+      throw AppException(AppExceptionTypes.DRIVER_NOT_AVAILABLE)
     }
 
+    val ride = rideMapper.getById(rideId) ?: throw AppException(AppExceptionTypes.RIDE_NOT_FOUND)
+
+    if (!RideStateMachine.canTransition(ride.status!!, RideStatus.ACCEPTED)) {
+      throw AppException(AppExceptionTypes.RIDE_ALREADY_TAKEN)
+    }
+
+    ride.driverId = driverId
     ride.setStatus(RideStatus.ACCEPTED)
-    rideMapper.updateStatus(ride)
+    rideMapper.updateDriver(ride)
 
     driver.setDriverStatus(DriverStatus.ON_TRIP)
     authMapper.updateDriverStatus(driver)
 
-    log.info("acceptOffer - driver $driverId accepted ride ${ride.id}")
-    sseService.send(ride.id!!, RideUpdateEvent().apply {
-      rideId = ride.id; status = ride.status; this.driverId = driverId
+    log.info("acceptRide - driver $driverId accepted ride $rideId")
+
+    // Notify rider via SSE
+    sseService.send(rideId, RideUpdateEvent().apply {
+      this.rideId = ride.id; status = ride.status; this.driverId = driverId
     })
+
+    // Remove this ride from all other drivers' lists
+    rideDispatchService.notifyDriversRideRemoved(ride)
+    // Close this driver's dispatch SSE (they're now on a trip)
+    rideDispatchService.removeDriver(driverId)
+
     return ride
   }
 
-  /** Decline a pending ride offer and attempt re-matching */
-  @Transactional
-  fun declineOffer(driverId: UUID): Ride {
-    log.info("declineOffer - driverId=$driverId")
-    val driver = getDriverById(driverId)
+  /** Decline a ride — record decline, refresh driver's list */
+  fun declineRide(driverId: UUID, rideId: UUID) {
+    log.info("declineRide - driverId=$driverId, rideId=$rideId")
 
-    if (driver.driverStatus != DriverStatus.LOCKED) throw AppException(AppExceptionTypes.DRIVER_NOT_LOCKED)
-
-    val ride = rideMapper.getMatchedRideForDriver(driverId) ?: throw AppException(AppExceptionTypes.NO_PENDING_OFFER)
-
-    driver.setDriverStatus(DriverStatus.AVAILABLE)
-    authMapper.updateDriverStatus(driver)
-
-    val nextDriver = matchingService.findNearestDriver(ride.pickupLat!!, ride.pickupLng!!, listOf(driverId))
-    if (nextDriver != null) {
-      ride.driverId = nextDriver.driverId
-      ride.setStatus(RideStatus.MATCHED)
-      rideMapper.updateDriver(ride)
-
-      authMapper.getById(nextDriver.driverId!!)?.let { next ->
-        next.setDriverStatus(DriverStatus.LOCKED)
-        authMapper.updateDriverStatus(next)
-      }
-      log.info("declineOffer - re-matched ride ${ride.id} to driver ${nextDriver.driverId}")
-    } else {
-      ride.driverId = null
-      ride.setStatus(RideStatus.REQUESTED)
-      rideMapper.updateDriver(ride)
-      log.info("declineOffer - no other driver available, ride ${ride.id} back to REQUESTED")
+    val ride = rideMapper.getById(rideId) ?: throw AppException(AppExceptionTypes.RIDE_NOT_FOUND)
+    if (ride.status != RideStatus.REQUESTED) {
+      throw AppException(AppExceptionTypes.RIDE_ALREADY_TAKEN)
     }
-    return ride
+
+    val decline = RideDecline().apply {
+      this.rideId = rideId
+      this.driverId = driverId
+    }
+    rideDeclineMapper.insert(decline)
+    log.info("declineRide - recorded decline for ride $rideId by driver $driverId")
+
+    // Refresh this driver's available rides (declined ride will be filtered out)
+    rideDispatchService.notifyDriver(driverId)
   }
 }

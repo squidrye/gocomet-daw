@@ -5,6 +5,7 @@ import com.ridehailing.core_api.common.exception.AppException
 import com.ridehailing.core_api.common.exception.AppExceptionTypes
 import com.ridehailing.core_api.common.model.DriverStatus
 import com.ridehailing.core_api.common.model.RideStatus
+import com.ridehailing.core_api.ride.RideDispatchService
 import com.ridehailing.core_api.ride.RideMapper
 import com.ridehailing.core_api.ride.RideStateMachine
 import com.ridehailing.core_api.sse.SSEService
@@ -33,6 +34,9 @@ open class TripService {
 
   @Autowired
   private lateinit var sseService: SSEService
+
+  @Autowired
+  private lateinit var rideDispatchService: RideDispatchService
 
   /** Start a trip — ACCEPTED → IN_PROGRESS */
   fun startTrip(rideId: UUID, driverId: UUID): TripResponse {
