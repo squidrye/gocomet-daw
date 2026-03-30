@@ -8,5 +8,6 @@ import java.util.UUID
 @Mapper
 interface DriverLocationMapper {
   fun insert(location: DriverLocation): Int
+  fun bulkInsert(@Param("locations") locations: List<DriverLocation>): Int
   fun getLatestByDriverId(@Param("driverId") driverId: UUID): DriverLocation?
 }

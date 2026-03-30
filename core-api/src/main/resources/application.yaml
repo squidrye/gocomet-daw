@@ -48,9 +48,9 @@ management:
   newrelic:
     metrics:
       export:
-        enabled: true
-        api-key: ${NEW_RELIC_API_KEY:}
-        account-id: ${NEW_RELIC_ACCOUNT_ID:}
+        enabled: ${NEW_RELIC_ENABLED:false}
+        api-key: ${NEW_RELIC_API_KEY:dummy}
+        account-id: ${NEW_RELIC_ACCOUNT_ID:0}
         step: 30s
 
 jwt:

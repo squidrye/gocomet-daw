@@ -8,6 +8,13 @@
     VALUES (#{driverId}::uuid, #{latitude}, #{longitude})
   </insert>
 
+  <insert id="bulkInsert">
+    INSERT INTO driver_locations (driver_id, latitude, longitude) VALUES
+    <foreach collection="locations" item="loc" separator=",">
+      (#{loc.driverId}::uuid, #{loc.latitude}, #{loc.longitude})
+    </foreach>
+  </insert>
+
   <select id="getLatestByDriverId" resultType="com.ridehailing.core_api.common.model.DriverLocation">
     SELECT id, driver_id, latitude, longitude, created_at
     FROM driver_locations

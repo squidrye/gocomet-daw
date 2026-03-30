@@ -52,6 +52,9 @@ open class DriverService {
   @Autowired
   private lateinit var sseService: SSEService
 
+  @Autowired
+  private lateinit var locationAuditBuffer: LocationAuditBuffer
+
   /** Store driver's current location */
   fun updateLocation(driverId: UUID, request: LocationUpdateRequest): DriverLocation {
     log.info("updateLocation - driverId=$driverId")
@@ -73,9 +76,8 @@ open class DriverService {
     // Redis: hot-path for fast geo lookups
     redisLocationService.updateLocation(driverId, request.latitude!!, request.longitude!!)
 
-    // PostgreSQL: audit trail (non-critical path)
-    driverLocationMapper.insert(location)
-    log.debug("updateLocation - stored location id=${location.id}")
+    locationAuditBuffer.add(location)
+    log.debug("updateLocation - buffered for audit")
 
     // If driver is connected to dispatch SSE, refresh their available rides
     if (rideDispatchService.isDriverConnected(driverId)) {
