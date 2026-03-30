@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ridehailing.core_api.ride.RideDeclineMapper">
+
+  <insert id="insert" parameterType="com.ridehailing.core_api.common.model.RideDecline"
+          useGeneratedKeys="true" keyColumn="id,created_at" keyProperty="id,createdAt">
+    INSERT INTO ride_declines (ride_id, driver_id)
+    VALUES (#{rideId}::uuid, #{driverId}::uuid)
+  </insert>
+
+  <select id="getDeclinedRideIdsForDriver" resultType="java.util.UUID">
+    SELECT ride_id
+    FROM ride_declines
+    WHERE driver_id = #{driverId}::uuid AND delete_info IS NULL
+  </select>
+
+</mapper>
