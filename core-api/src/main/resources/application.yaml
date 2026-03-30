@@ -37,10 +37,20 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,metrics,info
+        include: health,metrics,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  newrelic:
+    metrics:
+      export:
+        enabled: true
+        api-key: ${NEW_RELIC_API_KEY:}
+        account-id: ${NEW_RELIC_ACCOUNT_ID:}
+        step: 30s
 
 jwt:
-  secret: a-very-secure-random-key-that-is-at-least-256-bits-long-for-hs256
+  secret: randomstringrandomstringrandomstringrandomstringrandomstringrandomstring
   expiration-ms: 86400000
 
 logging:
