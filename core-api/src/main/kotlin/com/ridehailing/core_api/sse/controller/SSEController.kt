@@ -6,6 +6,8 @@ import com.ridehailing.core_api.common.model.RideStatus
 import com.ridehailing.core_api.driver.DriverService
 import com.ridehailing.core_api.driver.dto.DriverLocationResponse
 import com.ridehailing.core_api.ride.RideMapper
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
@@ -17,6 +19,7 @@ import java.util.UUID
 
 @RestController
 @RequestMapping("/rides")
+@Tag(name = "Rides")
 open class SSEController {
 
   private val log = LoggerFactory.getLogger(this::class.java)
@@ -30,14 +33,14 @@ open class SSEController {
   @Autowired
   private lateinit var driverService: DriverService
 
-  /** SSE stream for ride updates */
+  @Operation(summary = "SSE stream for ride status updates")
   @GetMapping("/{id}/events", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
   fun streamEvents(@PathVariable id: UUID): SseEmitter {
     log.info("streamEvents - rideId=$id")
     return sseService.register(id)
   }
 
-  /** Get driver's current location for rider polling */
+  @Operation(summary = "Get driver's current location for a ride")
   @GetMapping("/{id}/driver-location")
   fun getDriverLocation(@PathVariable id: UUID): ResponseEntity<DriverLocationResponse> {
     log.info("getDriverLocation - rideId=$id")

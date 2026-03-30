@@ -1,6 +1,8 @@
 package com.ridehailing.core_api.trip
 
 import com.ridehailing.core_api.trip.dto.TripResponse
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
@@ -12,12 +14,13 @@ import java.util.*
 
 @RestController
 @RequestMapping("/trips")
+@Tag(name = "Trips")
 open class TripController {
 
   @Autowired
   private lateinit var tripService: TripService
 
-  /** Start a trip */
+  @Operation(summary = "Start a trip")
   @PostMapping("/{rideId}/start")
   fun startTrip(@PathVariable rideId: UUID): ResponseEntity<TripResponse> {
     val driverId = getAuthUserId()
@@ -25,7 +28,7 @@ open class TripController {
     return ResponseEntity.ok(response)
   }
 
-  /** End a trip */
+  @Operation(summary = "End a trip and calculate fare")
   @PostMapping("/{rideId}/end")
   fun endTrip(@PathVariable rideId: UUID): ResponseEntity<TripResponse> {
     val driverId = getAuthUserId()

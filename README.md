@@ -12,6 +12,7 @@ docker-compose up --build
 
 - Frontend: http://localhost:3000
 - API: http://localhost:9000/v1
+- Swagger: http://localhost:9000/v1/swagger-ui.html
 
 ### Local Development
 

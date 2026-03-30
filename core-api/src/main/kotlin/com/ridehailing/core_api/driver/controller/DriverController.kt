@@ -8,6 +8,8 @@ import com.ridehailing.core_api.driver.dto.StatusUpdateRequest
 import com.ridehailing.core_api.ride.RideDispatchService
 import com.ridehailing.core_api.ride.RideMapper
 import com.ridehailing.core_api.ride.RideService
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -18,6 +20,7 @@ import java.util.UUID
 
 @RestController
 @RequestMapping("/drivers/me")
+@Tag(name = "Drivers")
 open class DriverController {
 
   @Autowired
@@ -32,7 +35,7 @@ open class DriverController {
   @Autowired
   private lateinit var rideService: RideService
 
-  /** Update driver's current location */
+  @Operation(summary = "Update driver location")
   @PutMapping("/location")
   fun updateLocation(@RequestBody request: LocationUpdateRequest): ResponseEntity<DriverLocation> {
     val driverId = getAuthUserId()
@@ -40,7 +43,7 @@ open class DriverController {
     return ResponseEntity.ok(location)
   }
 
-  /** Toggle driver online/offline */
+  @Operation(summary = "Get current driver status and sync state")
   @GetMapping("/status")
   fun getStatus(): ResponseEntity<DriverStatusResponse> {
     val driverId = getAuthUserId()
@@ -52,6 +55,7 @@ open class DriverController {
     return ResponseEntity.ok(response)
   }
 
+  @Operation(summary = "Go online or offline")
   @PutMapping("/status")
   fun updateStatus(@RequestBody request: StatusUpdateRequest): ResponseEntity<DriverStatusResponse> {
     val driverId = getAuthUserId()
@@ -63,7 +67,7 @@ open class DriverController {
     return ResponseEntity.ok(response)
   }
 
-  /** SSE stream for available rides near this driver */
+  @Operation(summary = "Get driver's active trip")
   @GetMapping("/active-ride")
   fun getActiveRide(): ResponseEntity<com.ridehailing.core_api.ride.dto.RideResponse> {
     val driverId = getAuthUserId()
@@ -72,6 +76,7 @@ open class DriverController {
     return ResponseEntity.ok(rideService.toResponse(ride))
   }
 
+  @Operation(summary = "SSE stream for nearby available rides")
   @GetMapping("/rides/stream", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
   fun streamAvailableRides(): SseEmitter {
     val driverId = getAuthUserId()
@@ -80,7 +85,7 @@ open class DriverController {
     return emitter
   }
 
-  /** Accept a ride */
+  @Operation(summary = "Accept a ride")
   @PostMapping("/rides/{rideId}/accept")
   fun acceptRide(@PathVariable rideId: UUID): ResponseEntity<RideActionResponse> {
     val driverId = getAuthUserId()
@@ -92,7 +97,7 @@ open class DriverController {
     return ResponseEntity.ok(response)
   }
 
-  /** Decline a ride */
+  @Operation(summary = "Decline a ride")
   @PostMapping("/rides/{rideId}/decline")
   fun declineRide(@PathVariable rideId: UUID): ResponseEntity<Void> {
     val driverId = getAuthUserId()

@@ -31,6 +31,7 @@ open class SecurityConfig {
         it.requestMatchers("/auth/**").permitAll()
           .requestMatchers("/actuator/**").permitAll()
           .requestMatchers("/ping").permitAll()
+          .requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
           .anyRequest().authenticated()
       }
       .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
