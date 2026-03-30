@@ -2,16 +2,18 @@ package com.ridehailing.core_api.trip
 
 import com.ridehailing.core_api.auth.AuthMapper
 import com.ridehailing.core_api.common.exception.AppException
+import com.ridehailing.core_api.common.exception.AppExceptionTypes
 import com.ridehailing.core_api.common.model.DriverStatus
 import com.ridehailing.core_api.common.model.RideStatus
 import com.ridehailing.core_api.ride.RideMapper
 import com.ridehailing.core_api.ride.RideStateMachine
 import com.ridehailing.core_api.sse.SSEService
+import com.ridehailing.core_api.sse.dto.RideUpdateEvent
 import com.ridehailing.core_api.trip.dto.TripResponse
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.util.UUID
 
@@ -36,54 +38,34 @@ open class TripService {
   fun startTrip(rideId: UUID, driverId: UUID): TripResponse {
     log.info("startTrip - rideId=$rideId, driverId=$driverId")
 
-    val ride = rideMapper.getById(rideId)
-      ?: throw AppException(status = HttpStatus.NOT_FOUND, message = "Ride not found")
-
-    if (ride.driverId != driverId) {
-      throw AppException(status = HttpStatus.FORBIDDEN, message = "Driver not assigned to this ride")
-    }
+    val ride = rideMapper.getById(rideId) ?: throw AppException(AppExceptionTypes.RIDE_NOT_FOUND)
+    if (ride.driverId != driverId) throw AppException(AppExceptionTypes.TRIP_DRIVER_MISMATCH)
 
     if (!RideStateMachine.canTransition(ride.status!!, RideStatus.IN_PROGRESS)) {
-      throw AppException(
-        status = HttpStatus.CONFLICT,
-        message = "Cannot start trip in ${ride.status} state"
-      )
+      throw AppException(AppExceptionTypes.TRIP_INVALID_TRANSITION, ride.status)
     }
 
-    ride.apply {
-      status = RideStatus.IN_PROGRESS
-      startedAt = Instant.now()
-    }
+    ride.setStatus(RideStatus.IN_PROGRESS)
+    ride.startedAt = Instant.now()
     rideMapper.updateTripTimes(ride)
     log.info("startTrip - ride $rideId now IN_PROGRESS")
 
-    sseService.send(rideId, mapOf(
-      "rideId" to ride.id,
-      "status" to ride.status
-    ))
-
-    return TripResponse().apply {
-      this.rideId = ride.id
-      this.status = ride.status
-    }
+    sseService.send(rideId, RideUpdateEvent().apply {
+      this.rideId = ride.id; status = ride.status
+    })
+    return TripResponse().apply { this.rideId = ride.id; this.status = ride.status }
   }
 
   /** End a trip — IN_PROGRESS → COMPLETED, calculate fare, release driver */
+  @Transactional
   fun endTrip(rideId: UUID, driverId: UUID): TripResponse {
     log.info("endTrip - rideId=$rideId, driverId=$driverId")
 
-    val ride = rideMapper.getById(rideId)
-      ?: throw AppException(status = HttpStatus.NOT_FOUND, message = "Ride not found")
-
-    if (ride.driverId != driverId) {
-      throw AppException(status = HttpStatus.FORBIDDEN, message = "Driver not assigned to this ride")
-    }
+    val ride = rideMapper.getById(rideId) ?: throw AppException(AppExceptionTypes.RIDE_NOT_FOUND)
+    if (ride.driverId != driverId) throw AppException(AppExceptionTypes.TRIP_DRIVER_MISMATCH)
 
     if (!RideStateMachine.canTransition(ride.status!!, RideStatus.COMPLETED)) {
-      throw AppException(
-        status = HttpStatus.CONFLICT,
-        message = "Cannot end trip in ${ride.status} state"
-      )
+      throw AppException(AppExceptionTypes.TRIP_INVALID_TRANSITION, ride.status)
     }
 
     val finalFare = fareCalculator.calculate(
@@ -91,33 +73,21 @@ open class TripService {
       ride.dropoffLat!!, ride.dropoffLng!!
     )
 
-    ride.apply {
-      status = RideStatus.COMPLETED
-      this.finalFare = finalFare
-      completedAt = Instant.now()
-    }
+    ride.setStatus(RideStatus.COMPLETED)
+    ride.finalFare = finalFare
+    ride.completedAt = Instant.now()
     rideMapper.updateTripTimes(ride)
 
-    // Release driver back to AVAILABLE
-    val driver = authMapper.getById(driverId)
-    if (driver != null) {
-      driver.apply { driverStatus = DriverStatus.AVAILABLE }
+    authMapper.getById(driverId)?.let { driver ->
+      driver.setDriverStatus(DriverStatus.AVAILABLE)
       authMapper.updateDriverStatus(driver)
       log.info("endTrip - released driver $driverId back to AVAILABLE")
     }
 
     log.info("endTrip - ride $rideId COMPLETED, finalFare=$finalFare")
-
-    sseService.send(rideId, mapOf(
-      "rideId" to ride.id,
-      "status" to ride.status,
-      "finalFare" to finalFare
-    ))
-
-    return TripResponse().apply {
-      this.rideId = ride.id
-      this.status = ride.status
-      this.finalFare = finalFare
-    }
+    sseService.send(rideId, RideUpdateEvent().apply {
+      this.rideId = ride.id; status = ride.status; this.finalFare = finalFare
+    })
+    return TripResponse().apply { this.rideId = ride.id; this.status = ride.status; this.finalFare = finalFare }
   }
 }
