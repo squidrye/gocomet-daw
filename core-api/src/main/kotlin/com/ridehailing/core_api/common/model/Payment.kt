@@ -9,6 +9,13 @@ open class Payment {
   var rideId: UUID? = null
   var amount: BigDecimal? = null
   var transactionId: String? = null
-  var status: String? = null
+
+  // DB stores integer type ID; resolved via enum fromId()
+  var statusTypeId: Int? = null
+
   var createdAt: Instant? = null
+
+  val status: PaymentStatus? get() = PaymentStatus.fromId(statusTypeId)
+
+  fun setStatus(s: PaymentStatus) { statusTypeId = s.id }
 }

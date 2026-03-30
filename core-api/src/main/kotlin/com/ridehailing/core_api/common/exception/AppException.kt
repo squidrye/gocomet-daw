@@ -9,4 +9,17 @@ open class AppException(
   var status: HttpStatus = HttpStatus.INTERNAL_SERVER_ERROR,
   override var message: String = "Internal server error",
   var details: List<String>? = null
-) : RuntimeException(message)
+) : RuntimeException(message) {
+
+  /** Construct from a triplet defined in AppExceptionTypes */
+  constructor(
+    triplet: Triple<Int, HttpStatus, String>,
+    details: List<String>? = null
+  ) : this(triplet.first, triplet.second, triplet.third, details)
+
+  /** Construct from a triplet with a formatted message */
+  constructor(
+    triplet: Triple<Int, HttpStatus, String>,
+    vararg args: Any?
+  ) : this(triplet.first, triplet.second, triplet.third.format(*args), null)
+}

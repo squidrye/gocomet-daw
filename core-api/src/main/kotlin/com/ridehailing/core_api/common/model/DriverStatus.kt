@@ -1,5 +1,12 @@
 package com.ridehailing.core_api.common.model
 
-enum class DriverStatus {
-  OFFLINE, AVAILABLE, LOCKED, ON_TRIP
+enum class DriverStatus(val id: Int) {
+  OFFLINE(3),
+  AVAILABLE(4),
+  LOCKED(5),
+  ON_TRIP(6);
+
+  companion object {
+    fun fromId(id: Int?): DriverStatus? = entries.find { it.id == id }
+  }
 }

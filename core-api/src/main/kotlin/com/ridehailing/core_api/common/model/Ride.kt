@@ -12,7 +12,10 @@ open class Ride {
   var pickupLng: Double? = null
   var dropoffLat: Double? = null
   var dropoffLng: Double? = null
-  var status: RideStatus? = null
+
+  // DB stores integer type ID; resolved via enum fromId()
+  var statusTypeId: Int? = null
+
   var estimatedFare: BigDecimal? = null
   var finalFare: BigDecimal? = null
   var startedAt: Instant? = null
@@ -20,4 +23,8 @@ open class Ride {
   var cancelledAt: Instant? = null
   var createdAt: Instant? = null
   var updatedAt: Instant? = null
+
+  val status: RideStatus? get() = RideStatus.fromId(statusTypeId)
+
+  fun setStatus(s: RideStatus) { statusTypeId = s.id }
 }

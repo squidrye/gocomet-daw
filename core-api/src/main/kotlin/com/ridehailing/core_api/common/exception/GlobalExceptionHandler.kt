@@ -14,7 +14,7 @@ class GlobalExceptionHandler {
 
   @ExceptionHandler(AppException::class)
   fun handleAppException(ex: AppException): ResponseEntity<ErrorResponse> {
-    log.debug("handleAppException - ${ex.message}")
+    log.debug("handleAppException - code=${ex.code}, message=${ex.message}")
     val response = ErrorResponse().apply {
       error = ex.message
       details = ex.details
@@ -26,19 +26,19 @@ class GlobalExceptionHandler {
   fun handleValidation(ex: MethodArgumentNotValidException): ResponseEntity<ErrorResponse> {
     log.debug("handleValidation - ${ex.message}")
     val errors = ex.bindingResult.fieldErrors.map { "${it.field}: ${it.defaultMessage}" }
+    val (code, status, message) = AppExceptionTypes.VALIDATION_FAILED
     val response = ErrorResponse().apply {
-      error = "Validation failed"
-      details = errors
+      this.error = message
+      this.details = errors
     }
-    return ResponseEntity.badRequest().body(response)
+    return ResponseEntity.status(status).body(response)
   }
 
   @ExceptionHandler(HttpMessageNotReadableException::class)
   fun handleUnreadable(ex: HttpMessageNotReadableException): ResponseEntity<ErrorResponse> {
     log.debug("handleUnreadable - ${ex.message}")
-    val response = ErrorResponse().apply {
-      error = "Malformed request body"
-    }
-    return ResponseEntity.badRequest().body(response)
+    val (_, status, message) = AppExceptionTypes.MALFORMED_REQUEST
+    val response = ErrorResponse().apply { error = message }
+    return ResponseEntity.status(status).body(response)
   }
 }
