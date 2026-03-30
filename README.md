@@ -21,6 +21,7 @@ docker-compose up --build
 - PostgreSQL 15+
 - Redis 7+
 - Node.js 18+
+
 ---
 
 ## Architecture
@@ -59,13 +60,13 @@ Drivers are not auto-assigned. The system uses an event-driven approach where dr
 
 ### Redis Usage
 
-| Key | Type | Purpose |
-|-----|------|---------|
-| `driver:locations` | GEO Set | Driver proximity lookups |
-| `driver:available` | Set | Track online drivers |
-| `ride:dispatch` | Pub/Sub | Cross-instance event dispatch |
-| `ride:pending_queue` | Queue | Ride radius expansion scheduling |
-| `ride:queue_lock` | Lock | Prevents duplicate queue processing |
+| Key                  | Type    | Purpose                             |
+| -------------------- | ------- | ----------------------------------- |
+| `driver:locations`   | GEO Set | Driver proximity lookups            |
+| `driver:available`   | Set     | Track online drivers                |
+| `ride:dispatch`      | Pub/Sub | Cross-instance event dispatch       |
+| `ride:pending_queue` | Queue   | Ride radius expansion scheduling    |
+| `ride:queue_lock`    | Lock    | Prevents duplicate queue processing |
 
 ### Surge Pricing
 
@@ -86,41 +87,41 @@ If no driver accepts a ride within 30s, the search radius expands progressively 
 
 ### Auth
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/v1/auth/register` | Register (rider or driver) |
-| POST | `/v1/auth/login` | Login, returns JWT |
+| Method | Endpoint            | Description                |
+| ------ | ------------------- | -------------------------- |
+| POST   | `/v1/auth/register` | Register (rider or driver) |
+| POST   | `/v1/auth/login`    | Login, returns JWT         |
 
 ### Rides (Rider)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/v1/rides` | Create ride request |
-| GET | `/v1/rides/active` | Get active or unpaid ride |
-| GET | `/v1/rides/{id}` | Get ride details |
-| POST | `/v1/rides/{id}/cancel` | Cancel ride |
-| GET | `/v1/rides/{id}/events` | SSE stream for ride updates |
-| GET | `/v1/rides/{id}/driver-location` | Poll driver's current location |
+| Method | Endpoint                         | Description                    |
+| ------ | -------------------------------- | ------------------------------ |
+| POST   | `/v1/rides`                      | Create ride request            |
+| GET    | `/v1/rides/active`               | Get active or unpaid ride      |
+| GET    | `/v1/rides/{id}`                 | Get ride details               |
+| POST   | `/v1/rides/{id}/cancel`          | Cancel ride                    |
+| GET    | `/v1/rides/{id}/events`          | SSE stream for ride updates    |
+| GET    | `/v1/rides/{id}/driver-location` | Poll driver's current location |
 
 ### Drivers
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| PUT | `/v1/drivers/me/location` | Update location |
-| PUT | `/v1/drivers/me/status` | Go online/offline |
-| GET | `/v1/drivers/me/status` | Get current status |
-| GET | `/v1/drivers/me/active-ride` | Get active trip |
-| GET | `/v1/drivers/me/rides/stream` | SSE stream for nearby rides |
-| POST | `/v1/drivers/me/rides/{id}/accept` | Accept a ride |
-| POST | `/v1/drivers/me/rides/{id}/decline` | Decline a ride |
+| Method | Endpoint                            | Description                 |
+| ------ | ----------------------------------- | --------------------------- |
+| PUT    | `/v1/drivers/me/location`           | Update location             |
+| PUT    | `/v1/drivers/me/status`             | Go online/offline           |
+| GET    | `/v1/drivers/me/status`             | Get current status          |
+| GET    | `/v1/drivers/me/active-ride`        | Get active trip             |
+| GET    | `/v1/drivers/me/rides/stream`       | SSE stream for nearby rides |
+| POST   | `/v1/drivers/me/rides/{id}/accept`  | Accept a ride               |
+| POST   | `/v1/drivers/me/rides/{id}/decline` | Decline a ride              |
 
 ### Trips & Payments
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/v1/trips/{rideId}/start` | Start trip |
-| POST | `/v1/trips/{rideId}/end` | End trip + calculate fare |
-| POST | `/v1/payments` | Process payment (PSP stub) |
+| Method | Endpoint                   | Description                |
+| ------ | -------------------------- | -------------------------- |
+| POST   | `/v1/trips/{rideId}/start` | Start trip                 |
+| POST   | `/v1/trips/{rideId}/end`   | End trip + calculate fare  |
+| POST   | `/v1/payments`             | Process payment (PSP stub) |
 
 ---
 
@@ -197,3 +198,5 @@ Unit tests cover:
 - Redis-backed rate limiting
 - Ride tier support
 - Driver ratings and feedback
+
+![alt text](<Screenshot 2026-03-31 at 3.48.11 AM.png>) ![alt text](<Screenshot 2026-03-31 at 3.48.16 AM.png>) ![alt text](<Screenshot 2026-03-31 at 3.51.37 AM.png>) ![alt text](<Screenshot 2026-03-31 at 3.52.57 AM.png>) ![alt text](<Screenshot 2026-03-31 at 3.52.40 AM.png>) ![alt text](<Screenshot 2026-03-31 at 3.52.32 AM.png>) ![alt text](<Screenshot 2026-03-31 at 3.52.20 AM.png>) ![alt text](<Screenshot 2026-03-31 at 3.52.09 AM.png>) ![alt text](<Screenshot 2026-03-31 at 3.51.43 AM.png>) ![alt text](<Screenshot 2026-03-31 at 3.53.39 AM.png>)
