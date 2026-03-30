@@ -1,12 +1,13 @@
 package com.ridehailing.core_api.sse
 
 import com.ridehailing.core_api.common.exception.AppException
+import com.ridehailing.core_api.common.exception.AppExceptionTypes
 import com.ridehailing.core_api.common.model.RideStatus
 import com.ridehailing.core_api.driver.DriverService
+import com.ridehailing.core_api.driver.dto.DriverLocationResponse
 import com.ridehailing.core_api.ride.RideMapper
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
@@ -38,33 +39,27 @@ open class SSEController {
 
   /** Get driver's current location for rider polling */
   @GetMapping("/{id}/driver-location")
-  fun getDriverLocation(@PathVariable id: UUID): ResponseEntity<Map<String, Any?>> {
+  fun getDriverLocation(@PathVariable id: UUID): ResponseEntity<DriverLocationResponse> {
     log.info("getDriverLocation - rideId=$id")
     val riderId = getAuthUserId()
 
-    val ride = rideMapper.getById(id)
-      ?: throw AppException(status = HttpStatus.NOT_FOUND, message = "Ride not found")
-
-    if (ride.riderId != riderId) {
-      throw AppException(status = HttpStatus.FORBIDDEN, message = "Access denied")
-    }
+    val ride = rideMapper.getById(id) ?: throw AppException(AppExceptionTypes.RIDE_NOT_FOUND)
+    if (ride.riderId != riderId) throw AppException(AppExceptionTypes.RIDE_ACCESS_DENIED)
 
     if (ride.status != RideStatus.ACCEPTED && ride.status != RideStatus.IN_PROGRESS) {
-      throw AppException(
-        status = HttpStatus.FORBIDDEN,
-        message = "Driver location only available for ACCEPTED or IN_PROGRESS rides"
-      )
+      throw AppException(AppExceptionTypes.DRIVER_LOCATION_FORBIDDEN)
     }
 
     val location = driverService.getLatestLocation(ride.driverId!!)
-      ?: throw AppException(status = HttpStatus.NOT_FOUND, message = "Driver location not available")
+      ?: throw AppException(AppExceptionTypes.DRIVER_LOCATION_UNAVAILABLE)
 
-    return ResponseEntity.ok(mapOf(
-      "driverId" to ride.driverId,
-      "latitude" to location.latitude,
-      "longitude" to location.longitude,
-      "timestamp" to location.createdAt
-    ))
+    val response = DriverLocationResponse().apply {
+      driverId = ride.driverId
+      latitude = location.latitude
+      longitude = location.longitude
+      timestamp = location.createdAt
+    }
+    return ResponseEntity.ok(response)
   }
 
   private fun getAuthUserId(): UUID {

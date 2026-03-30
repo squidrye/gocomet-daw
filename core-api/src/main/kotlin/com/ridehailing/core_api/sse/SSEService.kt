@@ -1,6 +1,7 @@
 package com.ridehailing.core_api.sse
 
 import org.slf4j.LoggerFactory
+import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import java.util.UUID
@@ -26,7 +27,11 @@ open class SSEService {
   fun send(rideId: UUID, eventData: Any) {
     emitters[rideId]?.let { emitter ->
       try {
-        emitter.send(SseEmitter.event().name("ride-update").data(eventData))
+        emitter.send(
+          SseEmitter.event()
+            .name("ride-update")
+            .data(eventData, MediaType.APPLICATION_JSON)
+        )
       } catch (e: Exception) {
         log.debug("send - failed for rideId=$rideId, removing emitter")
         emitters.remove(rideId)
