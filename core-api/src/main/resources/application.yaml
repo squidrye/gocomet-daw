@@ -1,3 +1,48 @@
+server:
+  port: 9000
+  servlet:
+    context-path: /v1
+
 spring:
   application:
     name: core-api
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ridehailingdb
+    username: ridehailing_api
+    password: ridehailing123
+    driver-class-name: org.postgresql.Driver
+
+  flyway:
+    enabled: true
+
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+    serialization:
+      write-dates-as-timestamps: false
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-handlers-package: com.ridehailing.core_api.config
+  configuration:
+    map-underscore-to-camel-case: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info
+
+jwt:
+  secret: a-very-secure-random-key-that-is-at-least-256-bits-long-for-hs256
+  expiration-ms: 86400000
+
+logging:
+  level:
+    com.ridehailing: DEBUG

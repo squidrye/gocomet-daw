@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ridehailing.core_api.driver.DriverLocationMapper">
+
+  <insert id="insert" parameterType="com.ridehailing.core_api.common.model.DriverLocation"
+          useGeneratedKeys="true" keyColumn="id,created_at" keyProperty="id,createdAt">
+    INSERT INTO driver_locations (driver_id, latitude, longitude)
+    VALUES (#{driverId}::uuid, #{latitude}, #{longitude})
+  </insert>
+
+  <select id="getLatestByDriverId" resultType="com.ridehailing.core_api.common.model.DriverLocation">
+    SELECT id, driver_id, latitude, longitude, created_at
+    FROM driver_locations
+    WHERE driver_id = #{driverId}::uuid
+    ORDER BY created_at DESC
+    LIMIT 1
+  </select>
+
+</mapper>

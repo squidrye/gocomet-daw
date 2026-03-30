@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ridehailing.core_api.ride.RideMapper">
+
+  <insert id="insert" parameterType="com.ridehailing.core_api.common.model.Ride"
+          useGeneratedKeys="true" keyColumn="id,created_at,updated_at" keyProperty="id,createdAt,updatedAt">
+    INSERT INTO rides (rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, status, estimated_fare)
+    VALUES (
+      #{riderId}::uuid,
+      <if test="driverId != null">#{driverId}::uuid</if>
+      <if test="driverId == null">NULL</if>,
+      #{pickupLat}, #{pickupLng}, #{dropoffLat}, #{dropoffLng},
+      #{status}, #{estimatedFare}
+    )
+  </insert>
+
+  <select id="getById" resultType="com.ridehailing.core_api.common.model.Ride">
+    SELECT id, rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+           status, estimated_fare, final_fare, started_at, completed_at, cancelled_at,
+           created_at, updated_at
+    FROM rides
+    WHERE id = #{id}::uuid
+  </select>
+
+  <update id="updateStatus" parameterType="com.ridehailing.core_api.common.model.Ride">
+    UPDATE rides
+    SET status = #{status},
+        cancelled_at = #{cancelledAt},
+        updated_at = now()
+    WHERE id = #{id}::uuid
+  </update>
+
+  <update id="updateDriver" parameterType="com.ridehailing.core_api.common.model.Ride">
+    UPDATE rides
+    SET driver_id = #{driverId}::uuid, status = #{status}, updated_at = now()
+    WHERE id = #{id}::uuid
+  </update>
+
+  <update id="updateFare" parameterType="com.ridehailing.core_api.common.model.Ride">
+    UPDATE rides
+    SET final_fare = #{finalFare}, updated_at = now()
+    WHERE id = #{id}::uuid
+  </update>
+
+  <select id="findNearestDriver" resultType="com.ridehailing.core_api.common.model.DriverLocation">
+    SELECT dl.driver_id, dl.latitude, dl.longitude, dl.created_at
+    FROM driver_locations dl
+    INNER JOIN (
+      SELECT driver_id, MAX(created_at) AS max_created
+      FROM driver_locations
+      GROUP BY driver_id
+    ) latest ON dl.driver_id = latest.driver_id AND dl.created_at = latest.max_created
+    INNER JOIN users u ON u.id = dl.driver_id AND u.driver_status = 'AVAILABLE'
+    WHERE (6371 * acos(
+        cos(radians(#{pickupLat})) * cos(radians(dl.latitude))
+        * cos(radians(dl.longitude) - radians(#{pickupLng}))
+        + sin(radians(#{pickupLat})) * sin(radians(dl.latitude))
+      )) &lt;= #{radiusKm}
+    <if test="excludeDriverIds != null and excludeDriverIds.size() > 0">
+      AND dl.driver_id NOT IN
+      <foreach collection="excludeDriverIds" item="did" open="(" separator="," close=")">
+        #{did}::uuid
+      </foreach>
+    </if>
+    ORDER BY (6371 * acos(
+        cos(radians(#{pickupLat})) * cos(radians(dl.latitude))
+        * cos(radians(dl.longitude) - radians(#{pickupLng}))
+        + sin(radians(#{pickupLat})) * sin(radians(dl.latitude))
+      )) ASC
+    LIMIT 1
+  </select>
+
+  <update id="updateTripTimes" parameterType="com.ridehailing.core_api.common.model.Ride">
+    UPDATE rides
+    SET status = #{status},
+        started_at = #{startedAt},
+        completed_at = #{completedAt},
+        final_fare = #{finalFare},
+        updated_at = now()
+    WHERE id = #{id}::uuid
+  </update>
+
+  <select id="getMatchedRideForDriver" resultType="com.ridehailing.core_api.common.model.Ride">
+    SELECT id, rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+           status, estimated_fare, final_fare, started_at, completed_at, cancelled_at,
+           created_at, updated_at
+    FROM rides
+    WHERE driver_id = #{driverId}::uuid AND status = 'MATCHED'
+    LIMIT 1
+  </select>
+
+</mapper>

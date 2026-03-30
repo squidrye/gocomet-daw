@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ridehailing.core_api.payment.PaymentMapper">
+
+  <insert id="insert" parameterType="com.ridehailing.core_api.common.model.Payment"
+          useGeneratedKeys="true" keyColumn="id,created_at" keyProperty="id,createdAt">
+    INSERT INTO payments (ride_id, amount, transaction_id, status)
+    VALUES (#{rideId}::uuid, #{amount}, #{transactionId}, #{status})
+  </insert>
+
+  <select id="getByRideId" resultType="com.ridehailing.core_api.common.model.Payment">
+    SELECT id, ride_id, amount, transaction_id, status, created_at
+    FROM payments
+    WHERE ride_id = #{rideId}::uuid
+  </select>
+
+</mapper>

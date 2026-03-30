@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ridehailing.core_api.auth.AuthMapper">
+
+  <insert id="insert" parameterType="com.ridehailing.core_api.common.model.User"
+          useGeneratedKeys="true" keyColumn="id,created_at,updated_at" keyProperty="id,createdAt,updatedAt">
+    INSERT INTO users (email, password_hash, role, driver_status)
+    VALUES (
+      lower(#{email}),
+      #{passwordHash},
+      #{role},
+      <if test="role.name() == 'DRIVER'">
+        'OFFLINE'
+      </if>
+      <if test="role.name() != 'DRIVER'">
+        NULL
+      </if>
+    )
+  </insert>
+
+  <select id="getByEmail" resultType="com.ridehailing.core_api.common.model.User">
+    SELECT id, email, password_hash, role, driver_status, created_at, updated_at
+    FROM users
+    WHERE lower(email) = lower(#{email})
+  </select>
+
+  <select id="getById" resultType="com.ridehailing.core_api.common.model.User">
+    SELECT id, email, password_hash, role, driver_status, created_at, updated_at
+    FROM users
+    WHERE id = #{id}::uuid
+  </select>
+
+  <update id="updateDriverStatus" parameterType="com.ridehailing.core_api.common.model.User">
+    UPDATE users
+    SET driver_status = #{driverStatus}, updated_at = now()
+    WHERE id = #{id}::uuid
+  </update>
+
+</mapper>
