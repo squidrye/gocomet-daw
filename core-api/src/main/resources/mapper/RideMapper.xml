@@ -14,8 +14,8 @@
 
   <select id="getById" resultType="com.ridehailing.core_api.common.model.Ride">
     SELECT id, rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
-           status_type_id, estimated_fare, final_fare, surge_multiplier, started_at, completed_at, cancelled_at,
-           created_at, updated_at
+           status_type_id, estimated_fare, final_fare, surge_multiplier, search_radius_km,
+           started_at, completed_at, cancelled_at, created_at, updated_at
     FROM rides
     WHERE id = #{id}::uuid AND delete_info IS NULL
   </select>
@@ -55,8 +55,8 @@
   <!-- Active ride: REQUESTED(7), ACCEPTED(9), IN_PROGRESS(10) -->
   <select id="getActiveRideForRider" resultType="com.ridehailing.core_api.common.model.Ride">
     SELECT id, rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
-           status_type_id, estimated_fare, final_fare, surge_multiplier, started_at, completed_at, cancelled_at,
-           created_at, updated_at
+           status_type_id, estimated_fare, final_fare, surge_multiplier, search_radius_km,
+           started_at, completed_at, cancelled_at, created_at, updated_at
     FROM rides
     WHERE rider_id = #{riderId}::uuid AND status_type_id IN (7, 9, 10) AND delete_info IS NULL
     ORDER BY created_at DESC
@@ -66,8 +66,8 @@
   <!-- Active ride for driver: ACCEPTED(9), IN_PROGRESS(10) -->
   <select id="getActiveRideForDriver" resultType="com.ridehailing.core_api.common.model.Ride">
     SELECT id, rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
-           status_type_id, estimated_fare, final_fare, surge_multiplier, started_at, completed_at, cancelled_at,
-           created_at, updated_at
+           status_type_id, estimated_fare, final_fare, surge_multiplier, search_radius_km,
+           started_at, completed_at, cancelled_at, created_at, updated_at
     FROM rides
     WHERE driver_id = #{driverId}::uuid AND status_type_id IN (9, 10) AND delete_info IS NULL
     ORDER BY created_at DESC

@@ -20,7 +20,7 @@ open class FareCalculator {
   ): BigDecimal {
     val distanceKm = HaversineUtil.distanceKm(pickupLat, pickupLng, dropoffLat, dropoffLng)
     val fare = baseFare + (BigDecimal.valueOf(distanceKm) * perKmRate
-      * BigDecimal.valueOf(tierMultiplier) * BigDecimal.valueOf(surgeMultiplier))
+        * BigDecimal.valueOf(tierMultiplier) * BigDecimal.valueOf(surgeMultiplier))
     return fare.setScale(2, RoundingMode.HALF_UP)
   }
 }
