@@ -1,36 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
-import L from 'leaflet'
 import { useAuth } from '../context/AuthContext'
-import client from '../api/client'
+import client, { API_BASE } from '../api/client'
 import './DriverPage.css'
-
-const driverIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-})
-
-const pickupIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-})
-
-const dropoffIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-})
 
 const BASE_LAT = 19.076
 const BASE_LNG = 72.8777
 const SIM_STEPS = 20
 const SIM_INTERVAL_MS = 500
 
-function jitter() {
-  return (Math.random() - 0.5) * 0.002
-}
+function jitter() { return (Math.random() - 0.5) * 0.002 }
 
 export default function DriverPage() {
   const { token, logout } = useAuth()
@@ -46,19 +25,25 @@ export default function DriverPage() {
   const simRef = useRef(null)
 
   useEffect(() => {
-    async function syncStatus() {
+    async function syncState() {
       try {
-        const res = await client.get('/drivers/me/status')
-        if (res.data?.driverStatus) {
-          setStatus(res.data.driverStatus)
+        const statusRes = await client.get('/drivers/me/status')
+        const driverStatus = statusRes.data?.driverStatus || 'OFFLINE'
+        setStatus(driverStatus)
+        if (driverStatus === 'ON_TRIP') {
+          const rideRes = await client.get('/drivers/me/active-ride')
+          if (rideRes.status === 200 && rideRes.data) {
+            const r = rideRes.data
+            setActiveRide({ rideId: r.id, pickupLat: r.pickupLat, pickupLng: r.pickupLng, dropoffLat: r.dropoffLat, dropoffLng: r.dropoffLng, estimatedFare: r.estimatedFare })
+            setTripPhase(r.status === 'ACCEPTED' ? 'arrived' : 'at-dropoff')
+          }
         }
-      } catch { /* ignore */ }
+      } catch {}
       setLoading(false)
     }
-    syncStatus()
+    syncState()
   }, [])
 
-  // Send location updates every 3s when online
   useEffect(() => {
     if (status !== 'OFFLINE') {
       locationRef.current = setInterval(() => {
@@ -76,55 +61,37 @@ export default function DriverPage() {
   }, [status])
 
   async function sendLocation(loc) {
-    try {
-      await client.put('/drivers/me/location', { latitude: loc.lat, longitude: loc.lng })
-    } catch { /* ignore */ }
+    try { await client.put('/drivers/me/location', { latitude: loc.lat, longitude: loc.lng }) } catch {}
   }
 
-  // Connect to ride dispatch SSE when AVAILABLE
   const connectDispatchSSE = useCallback(() => {
     if (sseRef.current) sseRef.current.close()
-    const url = `http://localhost:9000/v1/drivers/me/rides/stream?token=${token}`
-    const es = new EventSource(url)
+    const es = new EventSource(`${API_BASE}/drivers/me/rides/stream?token=${token}`)
     sseRef.current = es
-
     es.addEventListener('available-rides', (e) => {
       try {
         const rides = JSON.parse(e.data)
         setAvailableRides(Array.isArray(rides) ? rides : [])
-      } catch { /* ignore */ }
+      } catch {}
     })
-
-    es.onerror = () => {
-      es.close()
-      sseRef.current = null
-    }
+    es.onerror = () => { es.close(); sseRef.current = null }
   }, [token])
 
   useEffect(() => {
     if (status === 'AVAILABLE' && !activeRide) {
       connectDispatchSSE()
     } else {
-      if (sseRef.current) {
-        sseRef.current.close()
-        sseRef.current = null
-      }
+      if (sseRef.current) { sseRef.current.close(); sseRef.current = null }
       if (status !== 'AVAILABLE') setAvailableRides([])
     }
-    return () => {
-      if (sseRef.current) { sseRef.current.close(); sseRef.current = null }
-    }
+    return () => { if (sseRef.current) { sseRef.current.close(); sseRef.current = null } }
   }, [status, activeRide, connectDispatchSSE])
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (sseRef.current) sseRef.current.close()
-      if (simRef.current) clearInterval(simRef.current)
-    }
+  useEffect(() => () => {
+    if (sseRef.current) sseRef.current.close()
+    if (simRef.current) clearInterval(simRef.current)
   }, [])
 
-  // Simulate driving from current pos to target over SIM_STEPS
   function simulateDrive(target, onComplete) {
     const startLat = pos.lat
     const startLng = pos.lng
@@ -132,16 +99,10 @@ export default function DriverPage() {
     simRef.current = setInterval(() => {
       step++
       const t = step / SIM_STEPS
-      const lat = startLat + (target.lat - startLat) * t
-      const lng = startLng + (target.lng - startLng) * t
-      const newPos = { lat, lng }
+      const newPos = { lat: startLat + (target.lat - startLat) * t, lng: startLng + (target.lng - startLng) * t }
       setPos(newPos)
       sendLocation(newPos)
-      if (step >= SIM_STEPS) {
-        clearInterval(simRef.current)
-        simRef.current = null
-        onComplete()
-      }
+      if (step >= SIM_STEPS) { clearInterval(simRef.current); simRef.current = null; onComplete() }
     }, SIM_INTERVAL_MS)
   }
 
@@ -149,15 +110,10 @@ export default function DriverPage() {
     const next = status === 'OFFLINE' ? 'AVAILABLE' : 'OFFLINE'
     setError('')
     try {
-      // Send location before going online so dispatch has it
-      if (next === 'AVAILABLE') {
-        await sendLocation(pos)
-      }
+      if (next === 'AVAILABLE') await sendLocation(pos)
       await client.put('/drivers/me/status', { status: next })
       setStatus(next)
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to update status')
-    }
+    } catch (err) { setError(err.response?.data?.error || 'Failed to update status') }
   }
 
   async function acceptRide(rideId) {
@@ -169,13 +125,8 @@ export default function DriverPage() {
       setAvailableRides([])
       setStatus('ON_TRIP')
       setTripPhase('to-pickup')
-      // Simulate driving to pickup
-      simulateDrive({ lat: ride.pickupLat, lng: ride.pickupLng }, () => {
-        setTripPhase('arrived')
-      })
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to accept ride')
-    }
+      simulateDrive({ lat: ride.pickupLat, lng: ride.pickupLng }, () => setTripPhase('arrived'))
+    } catch (err) { setError(err.response?.data?.error || 'Failed to accept ride') }
   }
 
   async function declineRide(rideId) {
@@ -183,9 +134,7 @@ export default function DriverPage() {
     try {
       await client.post(`/drivers/me/rides/${rideId}/decline`)
       setAvailableRides((prev) => prev.filter(r => r.rideId !== rideId))
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to decline')
-    }
+    } catch (err) { setError(err.response?.data?.error || 'Failed to decline') }
   }
 
   async function startTrip() {
@@ -194,13 +143,8 @@ export default function DriverPage() {
     try {
       await client.post(`/trips/${activeRide.rideId}/start`)
       setTripPhase('in-progress')
-      // Simulate driving to dropoff
-      simulateDrive({ lat: activeRide.dropoffLat, lng: activeRide.dropoffLng }, () => {
-        setTripPhase('at-dropoff')
-      })
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to start trip')
-    }
+      simulateDrive({ lat: activeRide.dropoffLat, lng: activeRide.dropoffLng }, () => setTripPhase('at-dropoff'))
+    } catch (err) { setError(err.response?.data?.error || 'Failed to start trip') }
   }
 
   async function endTrip() {
@@ -211,34 +155,20 @@ export default function DriverPage() {
       setActiveRide(null)
       setTripPhase(null)
       setStatus('AVAILABLE')
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to end trip')
-    }
+    } catch (err) { setError(err.response?.data?.error || 'Failed to end trip') }
   }
 
   const isOnline = status !== 'OFFLINE'
+  if (loading) return <div style={{padding: 24}}>Loading...</div>
 
   return (
     <div className="driver-layout">
       <div className="driver-map">
         <MapContainer center={[BASE_LAT, BASE_LNG]} zoom={14} style={{ height: '100%', width: '100%' }}>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <Marker position={[pos.lat, pos.lng]} icon={driverIcon}>
-            <Popup>You</Popup>
-          </Marker>
-          {activeRide && activeRide.pickupLat && (
-            <Marker position={[activeRide.pickupLat, activeRide.pickupLng]} icon={pickupIcon}>
-              <Popup>Pickup</Popup>
-            </Marker>
-          )}
-          {activeRide && activeRide.dropoffLat && (
-            <Marker position={[activeRide.dropoffLat, activeRide.dropoffLng]} icon={dropoffIcon}>
-              <Popup>Dropoff</Popup>
-            </Marker>
-          )}
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <Marker position={[pos.lat, pos.lng]}><Popup>You</Popup></Marker>
+          {activeRide?.pickupLat && <Marker position={[activeRide.pickupLat, activeRide.pickupLng]}><Popup>Pickup</Popup></Marker>}
+          {activeRide?.dropoffLat && <Marker position={[activeRide.dropoffLat, activeRide.dropoffLng]}><Popup>Dropoff</Popup></Marker>}
         </MapContainer>
       </div>
 
@@ -252,16 +182,11 @@ export default function DriverPage() {
 
         <div className="status-row">
           <span className="label">Status</span>
-          <span className={`badge badge-driver-${status.toLowerCase().replace('_', '-')}`}>
-            {status.replace('_', ' ')}
-          </span>
+          <span className={`badge badge-${status.toLowerCase().replace('_', '-')}`}>{status.replace('_', ' ')}</span>
         </div>
 
         {!activeRide && (
-          <button
-            className={isOnline ? 'btn-danger toggle-btn' : 'btn-primary toggle-btn'}
-            onClick={toggleStatus}
-          >
+          <button className={isOnline ? 'btn-danger toggle-btn' : 'btn-primary toggle-btn'} onClick={toggleStatus}>
             {isOnline ? 'Go Offline' : 'Go Online'}
           </button>
         )}
@@ -275,20 +200,10 @@ export default function DriverPage() {
             <h3>Available Rides ({availableRides.length})</h3>
             {availableRides.map((ride) => (
               <div key={ride.rideId} className="ride-card">
-                <div className="ride-detail">
-                  <span className="label">Pickup</span>
-                  <span className="value mono">{ride.pickupLat?.toFixed(4)}, {ride.pickupLng?.toFixed(4)}</span>
-                </div>
-                <div className="ride-detail">
-                  <span className="label">Dropoff</span>
-                  <span className="value mono">{ride.dropoffLat?.toFixed(4)}, {ride.dropoffLng?.toFixed(4)}</span>
-                </div>
-                {ride.estimatedFare && (
-                  <div className="ride-detail">
-                    <span className="label">Est. Fare</span>
-                    <span className="value">Rs. {Number(ride.estimatedFare).toFixed(2)}</span>
-                  </div>
-                )}
+                <div className="ride-detail"><span className="label">Pickup</span><span className="value">{ride.pickupLat?.toFixed(4)}, {ride.pickupLng?.toFixed(4)}</span></div>
+                <div className="ride-detail"><span className="label">Dropoff</span><span className="value">{ride.dropoffLat?.toFixed(4)}, {ride.dropoffLng?.toFixed(4)}</span></div>
+                {ride.estimatedFare && <div className="ride-detail"><span className="label">Fare</span><span className="value">Rs. {Number(ride.estimatedFare).toFixed(2)}</span></div>}
+                {ride.surgeMultiplier > 1 && <div className="ride-detail"><span className="label">Surge</span><span className="value surge">{ride.surgeMultiplier}x</span></div>}
                 <div className="ride-actions">
                   <button className="btn-primary btn-sm" onClick={() => acceptRide(ride.rideId)}>Accept</button>
                   <button className="btn-danger btn-sm" onClick={() => declineRide(ride.rideId)}>Decline</button>
@@ -311,12 +226,8 @@ export default function DriverPage() {
               </span>
             </div>
             <div className="trip-actions">
-              {tripPhase === 'arrived' && (
-                <button className="btn-primary" onClick={startTrip}>Start Trip</button>
-              )}
-              {tripPhase === 'at-dropoff' && (
-                <button className="btn-primary" onClick={endTrip}>End Trip</button>
-              )}
+              {tripPhase === 'arrived' && <button className="btn-primary" onClick={startTrip}>Start Trip</button>}
+              {tripPhase === 'at-dropoff' && <button className="btn-primary" onClick={endTrip}>End Trip</button>}
             </div>
           </div>
         )}

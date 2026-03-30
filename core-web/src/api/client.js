@@ -1,7 +1,9 @@
 import axios from 'axios'
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:9000/v1'
+
 const client = axios.create({
-  baseURL: 'http://localhost:9000/v1',
+  baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -14,3 +16,5 @@ client.interceptors.request.use((config) => {
 })
 
 export default client
+
+export { API_BASE }

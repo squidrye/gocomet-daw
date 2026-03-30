@@ -14,5 +14,9 @@ open class RideResponse {
   var estimatedFare: BigDecimal? = null
   var finalFare: BigDecimal? = null
   var driverId: UUID? = null
+  var surgeMultiplier: Double? = null
+  var driverName: String? = null
+  var driverVehicle: String? = null
+  var searchRadiusKm: Double? = null
   var message: String? = null
 }

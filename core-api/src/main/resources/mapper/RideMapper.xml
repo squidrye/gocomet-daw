@@ -4,17 +4,17 @@
 
   <insert id="insert" parameterType="com.ridehailing.core_api.common.model.Ride"
           useGeneratedKeys="true" keyColumn="id,created_at,updated_at" keyProperty="id,createdAt,updatedAt">
-    INSERT INTO rides (rider_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, status_type_id, estimated_fare)
+    INSERT INTO rides (rider_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, status_type_id, estimated_fare, surge_multiplier)
     VALUES (
       #{riderId}::uuid,
       #{pickupLat}, #{pickupLng}, #{dropoffLat}, #{dropoffLng},
-      #{statusTypeId}, #{estimatedFare}
+      #{statusTypeId}, #{estimatedFare}, #{surgeMultiplier}
     )
   </insert>
 
   <select id="getById" resultType="com.ridehailing.core_api.common.model.Ride">
     SELECT id, rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
-           status_type_id, estimated_fare, final_fare, started_at, completed_at, cancelled_at,
+           status_type_id, estimated_fare, final_fare, surge_multiplier, started_at, completed_at, cancelled_at,
            created_at, updated_at
     FROM rides
     WHERE id = #{id}::uuid AND delete_info IS NULL
@@ -55,7 +55,7 @@
   <!-- Active ride: REQUESTED(7), ACCEPTED(9), IN_PROGRESS(10) -->
   <select id="getActiveRideForRider" resultType="com.ridehailing.core_api.common.model.Ride">
     SELECT id, rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
-           status_type_id, estimated_fare, final_fare, started_at, completed_at, cancelled_at,
+           status_type_id, estimated_fare, final_fare, surge_multiplier, started_at, completed_at, cancelled_at,
            created_at, updated_at
     FROM rides
     WHERE rider_id = #{riderId}::uuid AND status_type_id IN (7, 9, 10) AND delete_info IS NULL
@@ -66,7 +66,7 @@
   <!-- Active ride for driver: ACCEPTED(9), IN_PROGRESS(10) -->
   <select id="getActiveRideForDriver" resultType="com.ridehailing.core_api.common.model.Ride">
     SELECT id, rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
-           status_type_id, estimated_fare, final_fare, started_at, completed_at, cancelled_at,
+           status_type_id, estimated_fare, final_fare, surge_multiplier, started_at, completed_at, cancelled_at,
            created_at, updated_at
     FROM rides
     WHERE driver_id = #{driverId}::uuid AND status_type_id IN (9, 10) AND delete_info IS NULL
@@ -90,7 +90,7 @@
 
   <select id="getUnpaidCompletedRide" resultType="com.ridehailing.core_api.common.model.Ride">
     SELECT r.id, r.rider_id, r.driver_id, r.pickup_lat, r.pickup_lng, r.dropoff_lat, r.dropoff_lng,
-           r.status_type_id, r.estimated_fare, r.final_fare, r.started_at, r.completed_at, r.cancelled_at,
+           r.status_type_id, r.estimated_fare, r.final_fare, r.surge_multiplier, r.started_at, r.completed_at, r.cancelled_at,
            r.created_at, r.updated_at, r.search_radius_km
     FROM rides r
     WHERE r.rider_id = #{riderId}::uuid
@@ -107,7 +107,7 @@
   <!-- REQUESTED rides within the ride's own search radius of driver, excluding declined ones -->
   <select id="getAvailableRidesForDriver" resultType="com.ridehailing.core_api.common.model.Ride">
     SELECT r.id, r.rider_id, r.driver_id, r.pickup_lat, r.pickup_lng, r.dropoff_lat, r.dropoff_lng,
-           r.status_type_id, r.estimated_fare, r.final_fare, r.started_at, r.completed_at, r.cancelled_at,
+           r.status_type_id, r.estimated_fare, r.final_fare, r.surge_multiplier, r.started_at, r.completed_at, r.cancelled_at,
            r.created_at, r.updated_at, r.search_radius_km
     FROM rides r
     WHERE r.status_type_id = 7
@@ -127,7 +127,7 @@
   <!-- REQUESTED rides older than threshold that haven't hit max radius -->
   <select id="getStaleRequestedRides" resultType="com.ridehailing.core_api.common.model.Ride">
     SELECT id, rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
-           status_type_id, estimated_fare, final_fare, started_at, completed_at, cancelled_at,
+           status_type_id, estimated_fare, final_fare, surge_multiplier, started_at, completed_at, cancelled_at,
            created_at, updated_at, search_radius_km
     FROM rides
     WHERE status_type_id = 7
@@ -142,5 +142,13 @@
     SET search_radius_km = #{searchRadiusKm}, updated_at = now()
     WHERE id = #{id}::uuid AND delete_info IS NULL
   </update>
+
+  <select id="countRequestedRidesNear" resultType="int">
+    SELECT COUNT(*) FROM rides
+    WHERE status_type_id = 7
+      AND delete_info IS NULL
+      AND pickup_lat BETWEEN #{lat} - (#{radiusKm} / 111.0) AND #{lat} + (#{radiusKm} / 111.0)
+      AND pickup_lng BETWEEN #{lng} - (#{radiusKm} / (111.0 * cos(radians(#{lat})))) AND #{lng} + (#{radiusKm} / (111.0 * cos(radians(#{lat}))))
+  </select>
 
 </mapper>

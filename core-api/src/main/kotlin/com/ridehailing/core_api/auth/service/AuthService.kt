@@ -5,6 +5,7 @@ import com.ridehailing.core_api.auth.dto.LoginRequest
 import com.ridehailing.core_api.auth.dto.RegisterRequest
 import com.ridehailing.core_api.common.exception.AppException
 import com.ridehailing.core_api.common.exception.AppExceptionTypes
+import com.ridehailing.core_api.common.model.Role
 import com.ridehailing.core_api.common.model.User
 import com.ridehailing.core_api.config.JwtService
 import org.slf4j.LoggerFactory
@@ -37,6 +38,8 @@ open class AuthService {
     if (request.password.isNullOrBlank()) errors.add("password is required")
     else if (request.password!!.length < 8) errors.add("password must be at least 8 characters")
     if (request.role == null) errors.add("role is required")
+    if (request.name.isNullOrBlank()) errors.add("name is required")
+    if (request.role == Role.DRIVER && request.vehicleMake.isNullOrBlank()) errors.add("vehicleMake is required for drivers")
     if (errors.isNotEmpty()) throw AppException(AppExceptionTypes.VALIDATION_FAILED, errors)
 
     if (authMapper.getByEmail(request.email!!) != null) {
@@ -47,6 +50,8 @@ open class AuthService {
       email = request.email
       passwordHash = passwordEncoder.encode(request.password)
       setRole(request.role!!)
+      name = request.name
+      vehicleMake = request.vehicleMake
     }
     authMapper.insert(user)
     log.info("register - created userId=${user.id}")

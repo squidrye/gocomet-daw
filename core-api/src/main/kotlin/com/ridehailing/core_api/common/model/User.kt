@@ -12,6 +12,9 @@ open class User {
   var roleTypeId: Int? = null
   var driverStatusTypeId: Int? = null
 
+  var name: String? = null
+  var vehicleMake: String? = null
+
   var createdAt: Instant? = null
   var updatedAt: Instant? = null
 

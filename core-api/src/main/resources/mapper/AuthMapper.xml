@@ -4,24 +4,26 @@
 
   <insert id="insert" parameterType="com.ridehailing.core_api.common.model.User"
           useGeneratedKeys="true" keyColumn="id,created_at,updated_at" keyProperty="id,createdAt,updatedAt">
-    INSERT INTO users (email, password_hash, role_type_id, driver_status_type_id)
+    INSERT INTO users (email, password_hash, role_type_id, driver_status_type_id, name, vehicle_make)
     VALUES (
       lower(#{email}),
       #{passwordHash},
       #{roleTypeId},
       <if test="roleTypeId == 2">3</if>
-      <if test="roleTypeId != 2">NULL</if>
+      <if test="roleTypeId != 2">NULL</if>,
+      #{name},
+      #{vehicleMake}
     )
   </insert>
 
   <select id="getByEmail" resultType="com.ridehailing.core_api.common.model.User">
-    SELECT id, email, password_hash, role_type_id, driver_status_type_id, created_at, updated_at
+    SELECT id, email, password_hash, role_type_id, driver_status_type_id, name, vehicle_make, created_at, updated_at
     FROM users
     WHERE lower(email) = lower(#{email}) AND delete_info IS NULL
   </select>
 
   <select id="getById" resultType="com.ridehailing.core_api.common.model.User">
-    SELECT id, email, password_hash, role_type_id, driver_status_type_id, created_at, updated_at
+    SELECT id, email, password_hash, role_type_id, driver_status_type_id, name, vehicle_make, created_at, updated_at
     FROM users
     WHERE id = #{id}::uuid AND delete_info IS NULL
   </select>

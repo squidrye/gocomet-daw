@@ -6,6 +6,8 @@ import com.ridehailing.core_api.driver.dto.LocationUpdateRequest
 import com.ridehailing.core_api.driver.dto.RideActionResponse
 import com.ridehailing.core_api.driver.dto.StatusUpdateRequest
 import com.ridehailing.core_api.ride.RideDispatchService
+import com.ridehailing.core_api.ride.RideMapper
+import com.ridehailing.core_api.ride.RideService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -23,6 +25,12 @@ open class DriverController {
 
   @Autowired
   private lateinit var rideDispatchService: RideDispatchService
+
+  @Autowired
+  private lateinit var rideMapper: RideMapper
+
+  @Autowired
+  private lateinit var rideService: RideService
 
   /** Update driver's current location */
   @PutMapping("/location")
@@ -56,6 +64,14 @@ open class DriverController {
   }
 
   /** SSE stream for available rides near this driver */
+  @GetMapping("/active-ride")
+  fun getActiveRide(): ResponseEntity<com.ridehailing.core_api.ride.dto.RideResponse> {
+    val driverId = getAuthUserId()
+    val ride = rideMapper.getActiveRideForDriver(driverId)
+      ?: return ResponseEntity.noContent().build()
+    return ResponseEntity.ok(rideService.toResponse(ride))
+  }
+
   @GetMapping("/rides/stream", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
   fun streamAvailableRides(): SseEmitter {
     val driverId = getAuthUserId()

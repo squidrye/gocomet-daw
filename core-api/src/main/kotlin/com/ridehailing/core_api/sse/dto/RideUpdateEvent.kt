@@ -9,4 +9,5 @@ open class RideUpdateEvent {
   var status: RideStatus? = null
   var driverId: UUID? = null
   var finalFare: BigDecimal? = null
+  var searchRadiusKm: Double? = null
 }

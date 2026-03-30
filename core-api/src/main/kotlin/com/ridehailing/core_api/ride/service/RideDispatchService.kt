@@ -134,6 +134,7 @@ open class RideDispatchService {
       dropoffLat = ride.dropoffLat
       dropoffLng = ride.dropoffLng
       estimatedFare = ride.estimatedFare
+      surgeMultiplier = ride.surgeMultiplier
     }
   }
 }

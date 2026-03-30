@@ -10,4 +10,5 @@ open class AvailableRideResponse {
   var dropoffLat: Double? = null
   var dropoffLng: Double? = null
   var estimatedFare: BigDecimal? = null
+  var surgeMultiplier: Double? = null
 }

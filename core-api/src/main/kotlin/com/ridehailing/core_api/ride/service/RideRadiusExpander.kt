@@ -1,6 +1,8 @@
 package com.ridehailing.core_api.ride
 
 import com.ridehailing.core_api.common.model.RideStatus
+import com.ridehailing.core_api.sse.SSEService
+import com.ridehailing.core_api.sse.dto.RideUpdateEvent
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.scheduling.annotation.Scheduled
@@ -25,6 +27,9 @@ open class RideRadiusExpander {
 
   @Autowired
   private lateinit var rideDispatchService: RideDispatchService
+
+  @Autowired
+  private lateinit var sseService: SSEService
 
   @Scheduled(fixedDelay = 10000, initialDelay = 15000)
   fun processQueue() {
@@ -56,6 +61,11 @@ open class RideRadiusExpander {
     log.info("expandAndRedispatch - ride $rideId radius ${currentRadius}km -> ${newRadius}km")
 
     rideDispatchService.notifyDriversForNewRide(ride)
+
+    sseService.send(rideId, RideUpdateEvent().apply {
+      this.rideId = rideId
+      this.searchRadiusKm = newRadius
+    })
 
     if (newRadius < MAX_RADIUS_KM) {
       rideQueueService.enqueue(rideId)

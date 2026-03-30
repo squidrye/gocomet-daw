@@ -22,8 +22,8 @@ export function AuthProvider({ children }) {
     return { userId, role }
   }
 
-  async function register(email, password, role) {
-    const res = await client.post('/auth/register', { email, password, role })
+  async function register(payload) {
+    const res = await client.post('/auth/register', payload)
     const { token: jwt, userId, role: userRole } = res.data
     localStorage.setItem('token', jwt)
     localStorage.setItem('user', JSON.stringify({ userId, role: userRole }))

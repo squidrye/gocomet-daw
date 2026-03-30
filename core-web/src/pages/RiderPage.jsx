@@ -1,27 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
-import L from 'leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents } from 'react-leaflet'
 import { useAuth } from '../context/AuthContext'
-import client from '../api/client'
+import client, { API_BASE } from '../api/client'
 import './RiderPage.css'
-
-const greenIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-})
-
-const redIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-})
-
-const blueIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-})
 
 function MapClickHandler({ onMapClick }) {
   useMapEvents({ click: (e) => onMapClick(e.latlng) })
@@ -44,11 +25,8 @@ export default function RiderPage() {
 
   function handleMapClick(latlng) {
     if (ride) return
-    if (!pickup) {
-      setPickup(latlng)
-    } else if (!dropoff) {
-      setDropoff(latlng)
-    }
+    if (!pickup) setPickup(latlng)
+    else if (!dropoff) setDropoff(latlng)
   }
 
   function resetMarkers() {
@@ -58,50 +36,47 @@ export default function RiderPage() {
 
   const connectSSE = useCallback((rideId) => {
     if (sseRef.current) sseRef.current.close()
-    const url = `http://localhost:9000/v1/rides/${rideId}/events?token=${token}`
-    const es = new EventSource(url)
+    const es = new EventSource(`${API_BASE}/rides/${rideId}/events?token=${token}`)
     sseRef.current = es
-
     es.addEventListener('ride-update', (e) => {
       try {
         const data = JSON.parse(e.data)
-        setRide((prev) => prev ? { ...prev, ...data } : prev)
-      } catch { /* ignore parse errors */ }
+        setRide((prev) => {
+          if (!prev) return prev
+          const merged = { ...prev }
+          Object.keys(data).forEach((key) => {
+            if (data[key] != null) merged[key] = data[key]
+          })
+          return merged
+        })
+      } catch {}
     })
-
-    es.onerror = () => {
-      es.close()
-      sseRef.current = null
-    }
+    es.onerror = () => { es.close(); sseRef.current = null }
   }, [token])
 
-  // Fetch active ride on mount
   useEffect(() => {
     async function fetchActiveRide() {
       try {
         const res = await client.get('/rides/active')
         if (res.status === 200 && res.data) {
-          const activeRide = { ...res.data, paid: false }
-          setRide(activeRide)
-          setPickup({ lat: activeRide.pickupLat, lng: activeRide.pickupLng })
-          setDropoff({ lat: activeRide.dropoffLat, lng: activeRide.dropoffLng })
-          if (activeRide.status !== 'COMPLETED' && activeRide.status !== 'CANCELLED') {
-            connectSSE(activeRide.id)
-          }
+          const r = { ...res.data, paid: false }
+          setRide(r)
+          setPickup({ lat: r.pickupLat, lng: r.pickupLng })
+          setDropoff({ lat: r.dropoffLat, lng: r.dropoffLng })
+          if (r.status !== 'COMPLETED' && r.status !== 'CANCELLED') connectSSE(r.id)
         }
-      } catch { /* no active ride */ }
+      } catch {}
     }
     fetchActiveRide()
   }, [connectSSE])
 
-  // Poll driver location when ride is ACCEPTED or IN_PROGRESS
   useEffect(() => {
     if (ride && (ride.status === 'ACCEPTED' || ride.status === 'IN_PROGRESS')) {
       pollRef.current = setInterval(async () => {
         try {
           const res = await client.get(`/rides/${ride.id}/driver-location`)
           setDriverPos({ lat: res.data.latitude, lng: res.data.longitude })
-        } catch { /* ignore */ }
+        } catch {}
       }, 3000)
     } else {
       setDriverPos(null)
@@ -110,12 +85,7 @@ export default function RiderPage() {
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [ride?.status, ride?.id])
 
-  // Cleanup SSE on unmount
-  useEffect(() => {
-    return () => {
-      if (sseRef.current) sseRef.current.close()
-    }
-  }, [])
+  useEffect(() => () => { if (sseRef.current) sseRef.current.close() }, [])
 
   async function requestRide() {
     if (!pickup || !dropoff) return
@@ -123,14 +93,12 @@ export default function RiderPage() {
     setLoading(true)
     try {
       const res = await client.post('/rides', {
-        pickupLat: pickup.lat,
-        pickupLng: pickup.lng,
-        dropoffLat: dropoff.lat,
-        dropoffLng: dropoff.lng,
+        pickupLat: pickup.lat, pickupLng: pickup.lng,
+        dropoffLat: dropoff.lat, dropoffLng: dropoff.lng,
       })
-      const newRide = { ...res.data, paid: false }
-      setRide(newRide)
-      connectSSE(newRide.id)
+      const r = { ...res.data, paid: false }
+      setRide(r)
+      connectSSE(r.id)
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to request ride')
     } finally {
@@ -168,18 +136,20 @@ export default function RiderPage() {
     if (sseRef.current) sseRef.current.close()
   }
 
+  const searchRadiusM = ride?.status === 'REQUESTED' ? ((ride.searchRadiusKm || 5) * 1000) : null
+
   return (
     <div className="rider-layout">
       <div className="rider-map">
         <MapContainer center={[19.076, 72.8777]} zoom={13} style={{ height: '100%', width: '100%' }}>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <MapClickHandler onMapClick={handleMapClick} />
-          {pickup && <Marker position={pickup} icon={greenIcon}><Popup>Pickup</Popup></Marker>}
-          {dropoff && <Marker position={dropoff} icon={redIcon}><Popup>Dropoff</Popup></Marker>}
-          {driverPos && <Marker position={driverPos} icon={blueIcon}><Popup>Driver</Popup></Marker>}
+          {pickup && <Marker position={pickup}><Popup>Pickup</Popup></Marker>}
+          {dropoff && <Marker position={dropoff}><Popup>Dropoff</Popup></Marker>}
+          {driverPos && <Marker position={driverPos}><Popup>Driver</Popup></Marker>}
+          {pickup && searchRadiusM && (
+            <Circle center={pickup} radius={searchRadiusM} pathOptions={{ color: '#2563eb', fillOpacity: 0.08, weight: 1 }} />
+          )}
         </MapContainer>
       </div>
 
@@ -196,12 +166,8 @@ export default function RiderPage() {
             <p className="hint">
               {!pickup ? 'Click the map to set pickup' : !dropoff ? 'Click the map to set dropoff' : 'Ready to request'}
             </p>
-            {pickup && (
-              <p className="coord">Pickup: {pickup.lat.toFixed(4)}, {pickup.lng.toFixed(4)}</p>
-            )}
-            {dropoff && (
-              <p className="coord">Dropoff: {dropoff.lat.toFixed(4)}, {dropoff.lng.toFixed(4)}</p>
-            )}
+            {pickup && <p className="coord">Pickup: {pickup.lat.toFixed(4)}, {pickup.lng.toFixed(4)}</p>}
+            {dropoff && <p className="coord">Dropoff: {dropoff.lat.toFixed(4)}, {dropoff.lng.toFixed(4)}</p>}
             <div className="panel-actions">
               {pickup && <button className="btn-secondary" onClick={resetMarkers}>Reset</button>}
               {pickup && dropoff && (
@@ -217,8 +183,14 @@ export default function RiderPage() {
           <div className="panel-section">
             <div className="status-row">
               <span className="label">Status</span>
-              <span className={`badge badge-${ride.status.toLowerCase()}`}>{ride.status}</span>
+              <span className={`badge badge-${(ride.status || '').toLowerCase()}`}>{(ride.status || '').replace('_', ' ')}</span>
             </div>
+            {ride.surgeMultiplier > 1 && (
+              <div className="status-row">
+                <span className="label">Surge</span>
+                <span className="value surge">{ride.surgeMultiplier}x</span>
+              </div>
+            )}
             {ride.estimatedFare && (
               <div className="status-row">
                 <span className="label">Est. Fare</span>
@@ -231,21 +203,23 @@ export default function RiderPage() {
                 <span className="value">Rs. {Number(ride.finalFare).toFixed(2)}</span>
               </div>
             )}
-            {ride.driverId && (
+            {ride.driverName && (
               <div className="status-row">
                 <span className="label">Driver</span>
-                <span className="value mono">{ride.driverId.slice(0, 8)}...</span>
+                <span className="value">{ride.driverName}</span>
               </div>
             )}
-            {ride.message && <p className="ride-message">{ride.message}</p>}
+            {ride.driverVehicle && (
+              <div className="status-row">
+                <span className="label">Vehicle</span>
+                <span className="value">{ride.driverVehicle}</span>
+              </div>
+            )}
+            {ride.status === 'REQUESTED' && <p className="hint">Looking for drivers nearby...</p>}
 
             <div className="panel-actions">
-              {isCancellable && (
-                <button className="btn-danger" onClick={cancelRide}>Cancel Ride</button>
-              )}
-              {showPay && (
-                <button className="btn-primary" onClick={payRide}>Pay</button>
-              )}
+              {isCancellable && <button className="btn-danger" onClick={cancelRide}>Cancel Ride</button>}
+              {showPay && <button className="btn-primary" onClick={payRide}>Pay Rs. {Number(ride.finalFare).toFixed(2)}</button>}
               {ride.paid && <p className="paid-label">Payment complete</p>}
               {(ride.status === 'COMPLETED' && ride.paid) || ride.status === 'CANCELLED' ? (
                 <button className="btn-secondary" onClick={newRide}>New Ride</button>

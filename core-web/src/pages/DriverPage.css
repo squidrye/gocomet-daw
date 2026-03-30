@@ -1,11 +1,5 @@
-.driver-layout {
-  display: flex;
-  height: 100vh;
-}
-
-.driver-map {
-  flex: 1;
-}
+.driver-layout { display: flex; height: 100vh; }
+.driver-map { flex: 1; }
 
 .driver-panel {
   width: 340px;
@@ -18,204 +12,40 @@
   gap: 16px;
 }
 
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+.panel-header { display: flex; justify-content: space-between; align-items: center; }
+.panel-header h2 { font-size: 20px; font-weight: 600; margin: 0; }
+.panel-error { background: #fef2f2; color: #b91c1c; padding: 10px 12px; border-radius: 6px; font-size: 13px; }
+.toggle-btn { width: 100%; }
 
-.panel-header h2 {
-  font-size: 20px;
-  font-weight: 600;
-}
+.badge-offline { background: #f3f4f6; color: #6b7280; }
+.badge-available { background: #d1fae5; color: #065f46; }
+.badge-on-trip { background: #fef3c7; color: #92400e; }
 
-.panel-error {
-  background: #fef2f2;
-  color: #b91c1c;
-  padding: 10px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-}
-
-.toggle-btn {
-  width: 100%;
-}
-
-.badge-driver-offline { background: #f3f4f6; color: #6b7280; }
-.badge-driver-available { background: #d1fae5; color: #065f46; }
-.badge-driver-locked { background: #dbeafe; color: #1e40af; }
-.badge-driver-on_trip { background: #fef3c7; color: #92400e; }
-
-.offer-card,
-.trip-card {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.offer-card h3,
-.trip-card h3 {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.offer-detail {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-}
-
-.offer-actions,
-.trip-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.offer-actions .btn-primary,
-.offer-actions .btn-danger,
-.trip-actions .btn-primary {
-  flex: 1;
-}
-
-/* Shared classes from RiderPage */
-.status-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-}
-
+.status-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
 .label { color: #6b7280; }
 .value { color: #111; font-weight: 500; }
-.mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; }
+.surge { color: #dc2626; }
 
-.badge {
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+.badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+.badge-trip { background: #ede9fe; color: #5b21b6; }
 
-.badge-accepted { background: #d1fae5; color: #065f46; }
-.badge-in_progress { background: #dbeafe; color: #1e40af; }
-
-.btn-primary {
-  padding: 10px 20px;
-  background: #2563eb;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
+.btn-primary { padding: 10px 20px; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
 .btn-primary:hover { background: #1d4ed8; }
-
-.btn-danger {
-  padding: 10px 20px;
-  background: #fff;
-  color: #dc2626;
-  border: 1px solid #dc2626;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-}
-
+.btn-danger { padding: 10px 20px; background: #fff; color: #dc2626; border: 1px solid #dc2626; border-radius: 6px; font-size: 14px; cursor: pointer; }
 .btn-danger:hover { background: #fef2f2; }
-
-.btn-text {
-  background: none;
-  border: none;
-  color: #6b7280;
-  font-size: 13px;
-  cursor: pointer;
-}
-
+.btn-text { background: none; border: none; color: #6b7280; font-size: 13px; cursor: pointer; }
 .btn-text:hover { color: #111; }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
 
-/* Ride list styles */
-.rides-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+.rides-list { display: flex; flex-direction: column; gap: 10px; }
+.rides-list h3 { font-size: 15px; font-weight: 600; margin: 0; }
+.ride-card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.ride-detail { display: flex; justify-content: space-between; font-size: 13px; }
+.ride-actions { display: flex; gap: 8px; margin-top: 4px; }
+.ride-actions .btn-sm { flex: 1; }
 
-.rides-list h3 {
-  font-size: 15px;
-  font-weight: 600;
-  margin: 0;
-}
+.hint { color: #9ca3af; font-size: 14px; text-align: center; padding: 20px 0; }
 
-.ride-card {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ride-detail {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-}
-
-.ride-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.btn-sm {
-  padding: 6px 14px;
-  font-size: 13px;
-}
-
-.ride-actions .btn-sm {
-  flex: 1;
-}
-
-.hint {
-  color: #9ca3af;
-  font-size: 14px;
-  text-align: center;
-  padding: 20px 0;
-}
-
-.badge-driver-on-trip { background: #fef3c7; color: #92400e; }
-
-.badge-trip {
-  background: #ede9fe;
-  color: #5b21b6;
-}
-
-.trip-card {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.trip-card h3 {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.trip-actions {
-  display: flex;
-  gap: 8px;
-}
+.trip-card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.trip-card h3 { font-size: 16px; font-weight: 600; margin: 0; }
+.trip-actions { display: flex; gap: 8px; }

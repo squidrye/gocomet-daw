@@ -1,5 +1,6 @@
 package com.ridehailing.core_api.ride
 
+import com.ridehailing.core_api.auth.AuthMapper
 import com.ridehailing.core_api.common.exception.AppException
 import com.ridehailing.core_api.common.exception.AppExceptionTypes
 import com.ridehailing.core_api.common.model.Ride
@@ -36,6 +37,12 @@ open class RideService {
   @Autowired
   private lateinit var rideQueueService: RideQueueService
 
+  @Autowired
+  private lateinit var surgePricingService: SurgePricingService
+
+  @Autowired
+  private lateinit var authMapper: AuthMapper
+
   /** Create a new ride request and dispatch to nearby drivers */
   @Transactional
   fun createRide(riderId: UUID, request: CreateRideRequest): RideResponse {
@@ -51,9 +58,12 @@ open class RideService {
       throw AppException(AppExceptionTypes.RIDE_UNPAID_EXISTS)
     }
 
+    val surgeMultiplier = surgePricingService.calculateMultiplier(request.pickupLat!!, request.pickupLng!!)
+
     val estimatedFare = fareCalculator.calculate(
       request.pickupLat!!, request.pickupLng!!,
-      request.dropoffLat!!, request.dropoffLng!!
+      request.dropoffLat!!, request.dropoffLng!!,
+      surgeMultiplier = surgeMultiplier
     )
 
     val ride = Ride().apply {
@@ -64,6 +74,7 @@ open class RideService {
       this.dropoffLng = request.dropoffLng
       setStatus(RideStatus.REQUESTED)
       this.estimatedFare = estimatedFare
+      this.surgeMultiplier = surgeMultiplier
     }
     rideMapper.insert(ride)
     log.info("createRide - ride created id=${ride.id}")
@@ -77,10 +88,10 @@ open class RideService {
   fun getActiveRide(riderId: UUID): RideResponse? {
     log.info("getActiveRide - riderId=$riderId")
     val ride = rideMapper.getActiveRideForRider(riderId)
-    if (ride != null) return toResponse(ride)
+    if (ride != null) return enrichWithDriverDetails(toResponse(ride), ride.driverId)
 
     val unpaidRide = rideMapper.getUnpaidCompletedRide(riderId)
-    if (unpaidRide != null) return toResponse(unpaidRide)
+    if (unpaidRide != null) return enrichWithDriverDetails(toResponse(unpaidRide), unpaidRide.driverId)
 
     return null
   }
@@ -93,7 +104,7 @@ open class RideService {
     if (ride.riderId != userId && ride.driverId != userId) {
       throw AppException(AppExceptionTypes.RIDE_ACCESS_DENIED)
     }
-    return toResponse(ride)
+    return enrichWithDriverDetails(toResponse(ride), ride.driverId)
   }
 
   /** Cancel a ride */
@@ -133,7 +144,18 @@ open class RideService {
       estimatedFare = ride.estimatedFare
       finalFare = ride.finalFare
       driverId = ride.driverId
+      surgeMultiplier = ride.surgeMultiplier
+      searchRadiusKm = ride.searchRadiusKm
     }
+  }
+
+  private fun enrichWithDriverDetails(response: RideResponse, driverId: UUID?): RideResponse {
+    if (driverId == null) return response
+    authMapper.getById(driverId)?.let {
+      response.driverName = it.name
+      response.driverVehicle = it.vehicleMake
+    }
+    return response
   }
 
   private fun validateCoordinates(request: CreateRideRequest) {
