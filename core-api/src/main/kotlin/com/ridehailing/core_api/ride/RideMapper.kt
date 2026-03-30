@@ -13,13 +13,26 @@ interface RideMapper {
   fun updateStatus(ride: Ride): Int
   fun updateDriver(ride: Ride): Int
   fun updateFare(ride: Ride): Int
-  fun findNearestDriver(
-    @Param("pickupLat") pickupLat: Double,
-    @Param("pickupLng") pickupLng: Double,
-    @Param("radiusKm") radiusKm: Double,
-    @Param("excludeDriverIds") excludeDriverIds: List<UUID>?
-  ): DriverLocation?
-  fun getMatchedRideForDriver(@Param("driverId") driverId: UUID): Ride?
-  fun getActiveRideForRider(@Param("riderId") riderId: UUID): Ride?
   fun updateTripTimes(ride: Ride): Int
+  fun getActiveRideForRider(@Param("riderId") riderId: UUID): Ride?
+  fun getActiveRideForDriver(@Param("driverId") driverId: UUID): Ride?
+  fun hasUnpaidCompletedRide(@Param("riderId") riderId: UUID): Boolean
+  fun getAvailableRidesForDriver(
+    @Param("driverId") driverId: UUID,
+    @Param("lat") lat: Double,
+    @Param("lng") lng: Double
+  ): List<Ride>
+  fun getAvailableDriversNearLocation(
+    @Param("lat") lat: Double,
+    @Param("lng") lng: Double,
+    @Param("radiusKm") radiusKm: Double
+  ): List<DriverLocation>
+  fun getStaleRequestedRides(
+    @Param("maxRadiusKm") maxRadiusKm: Double,
+    @Param("staleSeconds") staleSeconds: Int
+  ): List<Ride>
+  fun updateSearchRadius(
+    @Param("id") id: UUID,
+    @Param("searchRadiusKm") searchRadiusKm: Double
+  ): Int
 }
