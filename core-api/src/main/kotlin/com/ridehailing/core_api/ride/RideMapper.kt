@@ -1,6 +1,5 @@
 package com.ridehailing.core_api.ride
 
-import com.ridehailing.core_api.common.model.DriverLocation
 import com.ridehailing.core_api.common.model.Ride
 import org.apache.ibatis.annotations.Mapper
 import org.apache.ibatis.annotations.Param
@@ -17,16 +16,12 @@ interface RideMapper {
   fun getActiveRideForRider(@Param("riderId") riderId: UUID): Ride?
   fun getActiveRideForDriver(@Param("driverId") driverId: UUID): Ride?
   fun hasUnpaidCompletedRide(@Param("riderId") riderId: UUID): Boolean
+  fun getUnpaidCompletedRide(@Param("riderId") riderId: UUID): Ride?
   fun getAvailableRidesForDriver(
     @Param("driverId") driverId: UUID,
     @Param("lat") lat: Double,
     @Param("lng") lng: Double
   ): List<Ride>
-  fun getAvailableDriversNearLocation(
-    @Param("lat") lat: Double,
-    @Param("lng") lng: Double,
-    @Param("radiusKm") radiusKm: Double
-  ): List<DriverLocation>
   fun getStaleRequestedRides(
     @Param("maxRadiusKm") maxRadiusKm: Double,
     @Param("staleSeconds") staleSeconds: Int

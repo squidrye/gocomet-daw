@@ -85,9 +85,11 @@ export default function RiderPage() {
           setRide(activeRide)
           setPickup({ lat: activeRide.pickupLat, lng: activeRide.pickupLng })
           setDropoff({ lat: activeRide.dropoffLat, lng: activeRide.dropoffLng })
-          connectSSE(activeRide.id)
+          if (activeRide.status !== 'COMPLETED' && activeRide.status !== 'CANCELLED') {
+            connectSSE(activeRide.id)
+          }
         }
-      } catch { /* no active ride, that's fine */ }
+      } catch { /* no active ride */ }
     }
     fetchActiveRide()
   }, [connectSSE])

@@ -38,11 +38,25 @@ export default function DriverPage() {
   const [pos, setPos] = useState({ lat: BASE_LAT, lng: BASE_LNG })
   const [availableRides, setAvailableRides] = useState([])
   const [activeRide, setActiveRide] = useState(null)
-  const [tripPhase, setTripPhase] = useState(null) // 'to-pickup' | 'arrived' | 'in-progress' | 'at-dropoff'
+  const [tripPhase, setTripPhase] = useState(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
   const locationRef = useRef(null)
   const sseRef = useRef(null)
   const simRef = useRef(null)
+
+  useEffect(() => {
+    async function syncStatus() {
+      try {
+        const res = await client.get('/drivers/me/status')
+        if (res.data?.driverStatus) {
+          setStatus(res.data.driverStatus)
+        }
+      } catch { /* ignore */ }
+      setLoading(false)
+    }
+    syncStatus()
+  }, [])
 
   // Send location updates every 3s when online
   useEffect(() => {

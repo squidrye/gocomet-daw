@@ -33,6 +33,9 @@ open class RideService {
   @Autowired
   private lateinit var rideDispatchService: RideDispatchService
 
+  @Autowired
+  private lateinit var rideQueueService: RideQueueService
+
   /** Create a new ride request and dispatch to nearby drivers */
   @Transactional
   fun createRide(riderId: UUID, request: CreateRideRequest): RideResponse {
@@ -66,14 +69,20 @@ open class RideService {
     log.info("createRide - ride created id=${ride.id}")
 
     rideDispatchService.notifyDriversForNewRide(ride)
+    rideQueueService.enqueue(ride.id!!)
     return toResponse(ride)
   }
 
   /** Get active ride for a rider (if any) */
   fun getActiveRide(riderId: UUID): RideResponse? {
     log.info("getActiveRide - riderId=$riderId")
-    val ride = rideMapper.getActiveRideForRider(riderId) ?: return null
-    return toResponse(ride)
+    val ride = rideMapper.getActiveRideForRider(riderId)
+    if (ride != null) return toResponse(ride)
+
+    val unpaidRide = rideMapper.getUnpaidCompletedRide(riderId)
+    if (unpaidRide != null) return toResponse(unpaidRide)
+
+    return null
   }
 
   /** Get ride details with access control */
@@ -109,6 +118,7 @@ open class RideService {
       this.rideId = ride.id; status = ride.status
     })
     rideDispatchService.notifyDriversRideRemoved(ride)
+    rideQueueService.dequeue(rideId)
     return toResponse(ride)
   }
 

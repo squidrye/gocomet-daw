@@ -13,6 +13,7 @@ import com.ridehailing.core_api.driver.dto.StatusUpdateRequest
 import com.ridehailing.core_api.ride.RideDeclineMapper
 import com.ridehailing.core_api.ride.RideDispatchService
 import com.ridehailing.core_api.ride.RideMapper
+import com.ridehailing.core_api.ride.RideQueueService
 import com.ridehailing.core_api.ride.RideStateMachine
 import com.ridehailing.core_api.sse.SSEService
 import com.ridehailing.core_api.sse.dto.RideUpdateEvent
@@ -31,6 +32,9 @@ open class DriverService {
   private lateinit var driverLocationMapper: DriverLocationMapper
 
   @Autowired
+  private lateinit var redisLocationService: RedisDriverLocationService
+
+  @Autowired
   private lateinit var authMapper: AuthMapper
 
   @Autowired
@@ -41,6 +45,9 @@ open class DriverService {
 
   @Autowired
   private lateinit var rideDispatchService: RideDispatchService
+
+  @Autowired
+  private lateinit var rideQueueService: RideQueueService
 
   @Autowired
   private lateinit var sseService: SSEService
@@ -62,6 +69,11 @@ open class DriverService {
       this.latitude = request.latitude
       this.longitude = request.longitude
     }
+
+    // Redis: hot-path for fast geo lookups
+    redisLocationService.updateLocation(driverId, request.latitude!!, request.longitude!!)
+
+    // PostgreSQL: audit trail (non-critical path)
     driverLocationMapper.insert(location)
     log.debug("updateLocation - stored location id=${location.id}")
 
@@ -90,8 +102,13 @@ open class DriverService {
     authMapper.updateDriverStatus(user)
     log.info("updateStatus - driver $driverId transitioned $current -> ${request.status}")
 
-    if (request.status == DriverStatus.OFFLINE) {
-      rideDispatchService.removeDriver(driverId)
+    when (request.status) {
+      DriverStatus.AVAILABLE -> redisLocationService.markAvailable(driverId)
+      DriverStatus.OFFLINE -> {
+        redisLocationService.markUnavailable(driverId)
+        rideDispatchService.removeDriver(driverId)
+      }
+      else -> redisLocationService.markUnavailable(driverId)
     }
 
     return user
@@ -102,8 +119,39 @@ open class DriverService {
     return authMapper.getById(driverId) ?: throw AppException(AppExceptionTypes.DRIVER_NOT_FOUND)
   }
 
-  /** Get latest location for a driver */
+  fun syncDriverState(driverId: UUID): User {
+    log.info("syncDriverState - driverId=$driverId")
+    val user = getDriverById(driverId)
+
+    val activeRide = rideMapper.getActiveRideForDriver(driverId)
+    if (activeRide != null && user.driverStatus != DriverStatus.ON_TRIP) {
+      user.setDriverStatus(DriverStatus.ON_TRIP)
+      authMapper.updateDriverStatus(user)
+      redisLocationService.markUnavailable(driverId)
+      log.info("syncDriverState - driver $driverId has active ride, reset to ON_TRIP")
+      return user
+    }
+
+    if (user.driverStatus == DriverStatus.AVAILABLE && !rideDispatchService.isDriverConnected(driverId)) {
+      user.setDriverStatus(DriverStatus.OFFLINE)
+      authMapper.updateDriverStatus(user)
+      redisLocationService.markUnavailable(driverId)
+      log.info("syncDriverState - driver $driverId was stale AVAILABLE, reset to OFFLINE")
+    }
+
+    return user
+  }
+
+  /** Get latest location for a driver — Redis first, PG fallback */
   fun getLatestLocation(driverId: UUID): DriverLocation? {
+    val redisLoc = redisLocationService.getLocation(driverId)
+    if (redisLoc != null) {
+      return DriverLocation().apply {
+        this.driverId = driverId
+        this.latitude = redisLoc.first
+        this.longitude = redisLoc.second
+      }
+    }
     return driverLocationMapper.getLatestByDriverId(driverId)
   }
 
@@ -129,6 +177,7 @@ open class DriverService {
 
     driver.setDriverStatus(DriverStatus.ON_TRIP)
     authMapper.updateDriverStatus(driver)
+    redisLocationService.markUnavailable(driverId)
 
     log.info("acceptRide - driver $driverId accepted ride $rideId")
 
@@ -139,6 +188,7 @@ open class DriverService {
 
     // Remove this ride from all other drivers' lists
     rideDispatchService.notifyDriversRideRemoved(ride)
+    rideQueueService.dequeue(rideId)
     // Close this driver's dispatch SSE (they're now on a trip)
     rideDispatchService.removeDriver(driverId)
 

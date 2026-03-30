@@ -1,17 +1,12 @@
 package com.ridehailing.core_api.ride
 
+import com.ridehailing.core_api.common.model.RideStatus
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
+import java.util.UUID
 
-/**
- * Periodically expands search radius for REQUESTED rides that haven't
- * been picked up by any driver. Bumps radius by 5km each cycle up to max.
- *
- * In production, this would be replaced by a Redis-backed delayed queue
- * or SQS with visibility timeout for multi-instance support.
- */
 @Component
 open class RideRadiusExpander {
 
@@ -20,28 +15,50 @@ open class RideRadiusExpander {
   companion object {
     const val RADIUS_INCREMENT_KM = 5.0
     const val MAX_RADIUS_KM = 20.0
-    const val STALE_THRESHOLD_SECONDS = 30
   }
 
   @Autowired
   private lateinit var rideMapper: RideMapper
 
   @Autowired
+  private lateinit var rideQueueService: RideQueueService
+
+  @Autowired
   private lateinit var rideDispatchService: RideDispatchService
 
-  /** Runs every 30s — finds stale REQUESTED rides and expands their radius */
-  @Scheduled(fixedDelay = 30000, initialDelay = 30000)
-  fun expandStaleRides() {
-    val staleRides = rideMapper.getStaleRequestedRides(MAX_RADIUS_KM, STALE_THRESHOLD_SECONDS)
-    if (staleRides.isEmpty()) return
+  @Scheduled(fixedDelay = 10000, initialDelay = 15000)
+  fun processQueue() {
+    if (!rideQueueService.tryAcquireLock()) return
 
-    log.info("expandStaleRides - found ${staleRides.size} stale rides to expand")
-    staleRides.forEach { ride ->
-      val newRadius = (ride.searchRadiusKm ?: 5.0) + RADIUS_INCREMENT_KM
-      rideMapper.updateSearchRadius(ride.id!!, newRadius.coerceAtMost(MAX_RADIUS_KM))
-      ride.searchRadiusKm = newRadius.coerceAtMost(MAX_RADIUS_KM)
-      log.info("expandStaleRides - ride ${ride.id} radius expanded to ${ride.searchRadiusKm}km")
-      rideDispatchService.notifyDriversForNewRide(ride)
+    try {
+      val dueRideIds = rideQueueService.popDueRides()
+      if (dueRideIds.isEmpty()) return
+
+      log.info("processQueue - processing ${dueRideIds.size} rides for expansion")
+      dueRideIds.forEach { expandAndRedispatch(it) }
+    } finally {
+      rideQueueService.releaseLock()
+    }
+  }
+
+  private fun expandAndRedispatch(rideId: UUID) {
+    val ride = rideMapper.getById(rideId)
+    if (ride == null || ride.status != RideStatus.REQUESTED) {
+      log.debug("expandAndRedispatch - ride $rideId no longer REQUESTED, skipping")
+      return
+    }
+
+    val currentRadius = ride.searchRadiusKm ?: 5.0
+    val newRadius = (currentRadius + RADIUS_INCREMENT_KM).coerceAtMost(MAX_RADIUS_KM)
+
+    rideMapper.updateSearchRadius(rideId, newRadius)
+    ride.searchRadiusKm = newRadius
+    log.info("expandAndRedispatch - ride $rideId radius ${currentRadius}km -> ${newRadius}km")
+
+    rideDispatchService.notifyDriversForNewRide(ride)
+
+    if (newRadius < MAX_RADIUS_KM) {
+      rideQueueService.enqueue(rideId)
     }
   }
 }

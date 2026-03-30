@@ -5,6 +5,7 @@ import com.ridehailing.core_api.common.exception.AppException
 import com.ridehailing.core_api.common.exception.AppExceptionTypes
 import com.ridehailing.core_api.common.model.DriverStatus
 import com.ridehailing.core_api.common.model.RideStatus
+import com.ridehailing.core_api.driver.RedisDriverLocationService
 import com.ridehailing.core_api.ride.RideDispatchService
 import com.ridehailing.core_api.ride.RideMapper
 import com.ridehailing.core_api.ride.RideStateMachine
@@ -37,6 +38,9 @@ open class TripService {
 
   @Autowired
   private lateinit var rideDispatchService: RideDispatchService
+
+  @Autowired
+  private lateinit var redisLocationService: RedisDriverLocationService
 
   /** Start a trip — ACCEPTED → IN_PROGRESS */
   fun startTrip(rideId: UUID, driverId: UUID): TripResponse {
@@ -85,6 +89,7 @@ open class TripService {
     authMapper.getById(driverId)?.let { driver ->
       driver.setDriverStatus(DriverStatus.AVAILABLE)
       authMapper.updateDriverStatus(driver)
+      redisLocationService.markAvailable(driverId)
       log.info("endTrip - released driver $driverId back to AVAILABLE")
     }
 

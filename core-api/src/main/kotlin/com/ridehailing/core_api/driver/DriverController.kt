@@ -33,6 +33,17 @@ open class DriverController {
   }
 
   /** Toggle driver online/offline */
+  @GetMapping("/status")
+  fun getStatus(): ResponseEntity<DriverStatusResponse> {
+    val driverId = getAuthUserId()
+    val user = driverService.syncDriverState(driverId)
+    val response = DriverStatusResponse().apply {
+      userId = user.id
+      driverStatus = user.driverStatus
+    }
+    return ResponseEntity.ok(response)
+  }
+
   @PutMapping("/status")
   fun updateStatus(@RequestBody request: StatusUpdateRequest): ResponseEntity<DriverStatusResponse> {
     val driverId = getAuthUserId()

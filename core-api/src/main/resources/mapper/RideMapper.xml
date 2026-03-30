@@ -88,6 +88,22 @@
     )
   </select>
 
+  <select id="getUnpaidCompletedRide" resultType="com.ridehailing.core_api.common.model.Ride">
+    SELECT r.id, r.rider_id, r.driver_id, r.pickup_lat, r.pickup_lng, r.dropoff_lat, r.dropoff_lng,
+           r.status_type_id, r.estimated_fare, r.final_fare, r.started_at, r.completed_at, r.cancelled_at,
+           r.created_at, r.updated_at, r.search_radius_km
+    FROM rides r
+    WHERE r.rider_id = #{riderId}::uuid
+      AND r.status_type_id = 11
+      AND r.delete_info IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM payments p
+        WHERE p.ride_id = r.id AND p.delete_info IS NULL
+      )
+    ORDER BY r.completed_at DESC
+    LIMIT 1
+  </select>
+
   <!-- REQUESTED rides within the ride's own search radius of driver, excluding declined ones -->
   <select id="getAvailableRidesForDriver" resultType="com.ridehailing.core_api.common.model.Ride">
     SELECT r.id, r.rider_id, r.driver_id, r.pickup_lat, r.pickup_lng, r.dropoff_lat, r.dropoff_lng,
@@ -106,25 +122,6 @@
         WHERE rd.driver_id = #{driverId}::uuid AND rd.delete_info IS NULL
       )
     ORDER BY r.created_at ASC
-  </select>
-
-  <!-- All AVAILABLE drivers with their latest location within radius of a point -->
-  <select id="getAvailableDriversNearLocation" resultType="com.ridehailing.core_api.common.model.DriverLocation">
-    SELECT dl.driver_id, dl.latitude, dl.longitude, dl.created_at
-    FROM driver_locations dl
-    INNER JOIN (
-      SELECT driver_id, MAX(created_at) AS max_created
-      FROM driver_locations
-      WHERE delete_info IS NULL
-      GROUP BY driver_id
-    ) latest ON dl.driver_id = latest.driver_id AND dl.created_at = latest.max_created
-    INNER JOIN users u ON u.id = dl.driver_id AND u.driver_status_type_id = 4 AND u.delete_info IS NULL
-    WHERE dl.delete_info IS NULL
-      AND (6371 * acos(
-        cos(radians(#{lat})) * cos(radians(dl.latitude))
-        * cos(radians(dl.longitude) - radians(#{lng}))
-        + sin(radians(#{lat})) * sin(radians(dl.latitude))
-      )) &lt;= #{radiusKm}
   </select>
 
   <!-- REQUESTED rides older than threshold that haven't hit max radius -->
