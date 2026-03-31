@@ -90,6 +90,7 @@ open class TripService {
       driver.setDriverStatus(DriverStatus.AVAILABLE)
       authMapper.updateDriverStatus(driver)
       redisLocationService.markAvailable(driverId)
+      redisLocationService.clearActiveRide(driverId)
       log.info("endTrip - released driver $driverId back to AVAILABLE")
     }
 

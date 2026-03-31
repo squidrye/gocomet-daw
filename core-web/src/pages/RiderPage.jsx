@@ -18,7 +18,6 @@ export default function RiderPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const sseRef = useRef(null)
-  const pollRef = useRef(null)
 
   const isCancellable = ride && ['REQUESTED', 'ACCEPTED'].includes(ride.status)
   const showPay = ride && ride.status === 'COMPLETED' && !ride.paid
@@ -51,6 +50,14 @@ export default function RiderPage() {
         })
       } catch {}
     })
+    es.addEventListener('driver-location', (e) => {
+      try {
+        const data = JSON.parse(e.data)
+        if (data.latitude != null && data.longitude != null) {
+          setDriverPos({ lat: data.latitude, lng: data.longitude })
+        }
+      } catch {}
+    })
     es.onerror = () => { es.close(); sseRef.current = null }
   }, [token])
 
@@ -69,21 +76,6 @@ export default function RiderPage() {
     }
     fetchActiveRide()
   }, [connectSSE])
-
-  useEffect(() => {
-    if (ride && (ride.status === 'ACCEPTED' || ride.status === 'IN_PROGRESS')) {
-      pollRef.current = setInterval(async () => {
-        try {
-          const res = await client.get(`/rides/${ride.id}/driver-location`)
-          setDriverPos({ lat: res.data.latitude, lng: res.data.longitude })
-        } catch {}
-      }, 3000)
-    } else {
-      setDriverPos(null)
-      if (pollRef.current) clearInterval(pollRef.current)
-    }
-    return () => { if (pollRef.current) clearInterval(pollRef.current) }
-  }, [ride?.status, ride?.id])
 
   useEffect(() => () => { if (sseRef.current) sseRef.current.close() }, [])
 
@@ -136,7 +128,7 @@ export default function RiderPage() {
     if (sseRef.current) sseRef.current.close()
   }
 
-  const searchRadiusM = ride?.status === 'REQUESTED' ? ((ride.searchRadiusKm || 5) * 1000) : null
+  const searchRadiusM = ride?.status === 'REQUESTED' ? ((ride.searchRadiusKm || 5) * 100) : null
 
   return (
     <div className="rider-layout">

@@ -26,7 +26,15 @@ open class RideDispatchSubscriber {
         DispatchEventType.RADIUS_EXPANDED -> rideDispatchService.handleDispatchEvent(event)
 
         DispatchEventType.DRIVER_CONNECTED,
-        DispatchEventType.DRIVER_DECLINED -> event.driverId?.let { rideDispatchService.handleDriverConnected(it) }
+        DispatchEventType.DRIVER_DECLINED,
+        DispatchEventType.DRIVER_MOVED -> event.driverId?.let { rideDispatchService.handleDriverConnected(it) }
+
+        DispatchEventType.DRIVER_LOCATION -> {
+          val rideId = event.rideId ?: return
+          val lat = event.driverLat ?: return
+          val lng = event.driverLng ?: return
+          rideDispatchService.handleDriverLocation(rideId, lat, lng)
+        }
 
         null -> log.warn("onMessage - received event with null type")
       }

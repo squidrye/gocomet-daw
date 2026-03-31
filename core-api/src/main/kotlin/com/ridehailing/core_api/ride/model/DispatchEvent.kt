@@ -7,7 +7,9 @@ enum class DispatchEventType {
   RIDE_REMOVED,
   RADIUS_EXPANDED,
   DRIVER_CONNECTED,
-  DRIVER_DECLINED
+  DRIVER_DECLINED,
+  DRIVER_MOVED,
+  DRIVER_LOCATION
 }
 
 open class DispatchEvent {
@@ -17,4 +19,6 @@ open class DispatchEvent {
   var pickupLng: Double? = null
   var searchRadiusKm: Double? = null
   var driverId: UUID? = null
+  var driverLat: Double? = null
+  var driverLng: Double? = null
 }

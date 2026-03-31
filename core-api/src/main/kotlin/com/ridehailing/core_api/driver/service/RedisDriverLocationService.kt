@@ -34,6 +34,19 @@ open class RedisDriverLocationService {
     redisTemplate.opsForSet().add(AVAILABLE_KEY, driverId.toString())
   }
 
+  fun setActiveRide(driverId: UUID, rideId: UUID) {
+    redisTemplate.opsForValue().set("driver:ride:$driverId", rideId.toString())
+  }
+
+  fun getActiveRideId(driverId: UUID): UUID? {
+    val value = redisTemplate.opsForValue().get("driver:ride:$driverId") ?: return null
+    return UUID.fromString(value)
+  }
+
+  fun clearActiveRide(driverId: UUID) {
+    redisTemplate.delete("driver:ride:$driverId")
+  }
+
   fun markUnavailable(driverId: UUID) {
     redisTemplate.opsForSet().remove(AVAILABLE_KEY, driverId.toString())
   }

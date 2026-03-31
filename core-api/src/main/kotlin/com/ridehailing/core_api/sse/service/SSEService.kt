@@ -38,4 +38,19 @@ open class SSEService {
       }
     }
   }
+
+  fun sendDriverLocation(rideId: UUID, latitude: Double, longitude: Double) {
+    emitters[rideId]?.let { emitter ->
+      try {
+        emitter.send(
+          SseEmitter.event()
+            .name("driver-location")
+            .data(mapOf("latitude" to latitude, "longitude" to longitude), MediaType.APPLICATION_JSON)
+        )
+      } catch (e: Exception) {
+        log.debug("sendDriverLocation - failed for rideId=$rideId, removing emitter")
+        emitters.remove(rideId)
+      }
+    }
+  }
 }

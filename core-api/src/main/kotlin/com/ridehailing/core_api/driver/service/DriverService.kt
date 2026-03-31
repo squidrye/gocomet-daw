@@ -29,6 +29,12 @@ open class DriverService {
 
   private val log = LoggerFactory.getLogger(this::class.java)
 
+  companion object {
+    const val REFRESH_DISTANCE_KM = 0.5
+  }
+
+  private val lastRefreshPosition = java.util.concurrent.ConcurrentHashMap<UUID, Pair<Double, Double>>()
+
   @Autowired
   private lateinit var driverLocationMapper: DriverLocationMapper
 
@@ -82,7 +88,21 @@ open class DriverService {
 
     // If driver is connected to dispatch SSE, refresh their available rides
     if (rideDispatchService.isDriverConnected(driverId)) {
-      rideDispatchService.notifyDriver(driverId)
+      val lastPos = lastRefreshPosition[driverId]
+      val shouldRefresh = lastPos == null ||
+        com.ridehailing.core_api.common.util.HaversineUtil.distanceKm(
+          lastPos.first, lastPos.second, request.latitude!!, request.longitude!!
+        ) >= REFRESH_DISTANCE_KM
+
+      if (shouldRefresh) {
+        lastRefreshPosition[driverId] = Pair(request.latitude!!, request.longitude!!)
+        rideDispatchService.notifyDriverMoved(driverId)
+      }
+    }
+
+    val activeRideId = redisLocationService.getActiveRideId(driverId)
+    if (activeRideId != null) {
+      rideDispatchService.publishDriverLocation(activeRideId, request.latitude!!, request.longitude!!)
     }
 
     return location
@@ -176,11 +196,13 @@ open class DriverService {
 
     ride.driverId = driverId
     ride.setStatus(RideStatus.ACCEPTED)
-    rideMapper.updateDriver(ride)
+    val updated = rideMapper.updateDriver(ride)
+    if (updated == 0) throw AppException(AppExceptionTypes.RIDE_ALREADY_TAKEN)
 
     driver.setDriverStatus(DriverStatus.ON_TRIP)
     authMapper.updateDriverStatus(driver)
     redisLocationService.markUnavailable(driverId)
+    redisLocationService.setActiveRide(driverId, rideId)
 
     log.info("acceptRide - driver $driverId accepted ride $rideId")
 

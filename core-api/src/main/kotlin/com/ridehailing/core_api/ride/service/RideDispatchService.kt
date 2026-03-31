@@ -5,6 +5,7 @@ import com.ridehailing.core_api.common.util.JsonUtil
 import com.ridehailing.core_api.config.RedisConfig
 import com.ridehailing.core_api.driver.RedisDriverLocationService
 import com.ridehailing.core_api.ride.dto.AvailableRideResponse
+import com.ridehailing.core_api.sse.SSEService
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.redis.core.StringRedisTemplate
@@ -31,6 +32,9 @@ open class RideDispatchService {
 
   @Autowired
   private lateinit var redisTemplate: StringRedisTemplate
+
+  @Autowired
+  private lateinit var sseService: SSEService
 
   private val driverEmitters = ConcurrentHashMap<UUID, SseEmitter>()
 
@@ -87,6 +91,22 @@ open class RideDispatchService {
     })
   }
 
+  fun notifyDriverMoved(driverId: UUID) {
+    publish(DispatchEvent().apply {
+      type = DispatchEventType.DRIVER_MOVED
+      this.driverId = driverId
+    })
+  }
+
+  fun publishDriverLocation(rideId: UUID, lat: Double, lng: Double) {
+    publish(DispatchEvent().apply {
+      type = DispatchEventType.DRIVER_LOCATION
+      this.rideId = rideId
+      this.driverLat = lat
+      this.driverLng = lng
+    })
+  }
+
   fun handleDispatchEvent(event: DispatchEvent) {
     val lat = event.pickupLat ?: return
     val lng = event.pickupLng ?: return
@@ -95,15 +115,44 @@ open class RideDispatchService {
     val nearbyDrivers = redisLocationService.findAvailableDriversNear(lat, lng, radius)
     log.debug("handleDispatchEvent - type=${event.type}, nearby=${nearbyDrivers.size}")
 
-    nearbyDrivers.forEach { (driverId, _) ->
-      val loc = redisLocationService.getLocation(driverId)
-      if (loc != null) pushRideListToDriver(driverId, loc.first, loc.second)
+    when (event.type) {
+      DispatchEventType.NEW_RIDE, DispatchEventType.RADIUS_EXPANDED -> {
+        val ride = event.rideId?.let { rideMapper.getById(it) } ?: return
+        val payload = toAvailableRide(ride)
+        nearbyDrivers.forEach { (driverId, _) ->
+          pushSingleRideToDriver(driverId, "ride-added", payload)
+        }
+      }
+      DispatchEventType.RIDE_REMOVED -> {
+        nearbyDrivers.forEach { (driverId, _) ->
+          pushSingleRideToDriver(driverId, "ride-removed", mapOf("rideId" to event.rideId))
+        }
+      }
+      else -> {}
     }
   }
 
   fun handleDriverConnected(driverId: UUID) {
     val loc = redisLocationService.getLocation(driverId) ?: return
     pushRideListToDriver(driverId, loc.first, loc.second)
+  }
+
+  fun handleDriverLocation(rideId: UUID, lat: Double, lng: Double) {
+    sseService.sendDriverLocation(rideId, lat, lng)
+  }
+
+  private fun pushSingleRideToDriver(driverId: UUID, eventName: String, payload: Any) {
+    val emitter = driverEmitters[driverId] ?: return
+    try {
+      emitter.send(
+        SseEmitter.event()
+          .name(eventName)
+          .data(payload, MediaType.APPLICATION_JSON)
+      )
+    } catch (e: Exception) {
+      log.debug("pushSingleRideToDriver - failed for $driverId, removing emitter")
+      driverEmitters.remove(driverId)
+    }
   }
 
   private fun pushRideListToDriver(driverId: UUID, lat: Double, lng: Double) {

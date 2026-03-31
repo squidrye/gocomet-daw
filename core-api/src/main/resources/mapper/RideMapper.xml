@@ -34,7 +34,7 @@
     SET driver_id      = <if test="driverId != null">#{driverId}::uuid</if><if test="driverId == null">NULL</if>,
         status_type_id = #{statusTypeId},
         updated_at     = now()
-    WHERE id = #{id}::uuid AND delete_info IS NULL
+    WHERE id = #{id}::uuid AND delete_info IS NULL AND status_type_id = 7
   </update>
 
   <update id="updateFare" parameterType="com.ridehailing.core_api.common.model.Ride">

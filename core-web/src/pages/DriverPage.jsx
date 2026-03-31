@@ -74,6 +74,21 @@ export default function DriverPage() {
         setAvailableRides(Array.isArray(rides) ? rides : [])
       } catch {}
     })
+    es.addEventListener('ride-added', (e) => {
+      try {
+        const ride = JSON.parse(e.data)
+        if (ride.rideId) setAvailableRides((prev) => {
+          if (prev.some(r => r.rideId === ride.rideId)) return prev
+          return [...prev, ride]
+        })
+      } catch {}
+    })
+    es.addEventListener('ride-removed', (e) => {
+      try {
+        const data = JSON.parse(e.data)
+        if (data.rideId) setAvailableRides((prev) => prev.filter(r => r.rideId !== data.rideId))
+      } catch {}
+    })
     es.onerror = () => { es.close(); sseRef.current = null }
   }, [token])
 

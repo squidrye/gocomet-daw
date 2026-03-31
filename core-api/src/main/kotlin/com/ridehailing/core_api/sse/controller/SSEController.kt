@@ -39,33 +39,4 @@ open class SSEController {
     log.info("streamEvents - rideId=$id")
     return sseService.register(id)
   }
-
-  @Operation(summary = "Get driver's current location for a ride")
-  @GetMapping("/{id}/driver-location")
-  fun getDriverLocation(@PathVariable id: UUID): ResponseEntity<DriverLocationResponse> {
-    log.info("getDriverLocation - rideId=$id")
-    val riderId = getAuthUserId()
-
-    val ride = rideMapper.getById(id) ?: throw AppException(AppExceptionTypes.RIDE_NOT_FOUND)
-    if (ride.riderId != riderId) throw AppException(AppExceptionTypes.RIDE_ACCESS_DENIED)
-
-    if (ride.status != RideStatus.ACCEPTED && ride.status != RideStatus.IN_PROGRESS) {
-      throw AppException(AppExceptionTypes.DRIVER_LOCATION_FORBIDDEN)
-    }
-
-    val location = driverService.getLatestLocation(ride.driverId!!)
-      ?: throw AppException(AppExceptionTypes.DRIVER_LOCATION_UNAVAILABLE)
-
-    val response = DriverLocationResponse().apply {
-      driverId = ride.driverId
-      latitude = location.latitude
-      longitude = location.longitude
-      timestamp = location.createdAt
-    }
-    return ResponseEntity.ok(response)
-  }
-
-  private fun getAuthUserId(): UUID {
-    return SecurityContextHolder.getContext().authentication.principal as UUID
-  }
 }
