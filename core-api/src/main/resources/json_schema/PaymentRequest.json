@@ -1,0 +1,8 @@
+{
+  "type": "object",
+  "required": ["rideId"],
+  "properties": {
+    "rideId": { "type": "string", "format": "uuid" }
+  },
+  "additionalProperties": false
+}

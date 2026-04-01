@@ -9,6 +9,7 @@ import java.util.UUID
 interface RideMapper {
   fun insert(ride: Ride): Int
   fun getById(@Param("id") id: UUID): Ride?
+  fun getByIdForUpdate(@Param("id") id: UUID): Ride?
   fun updateStatus(ride: Ride): Int
   fun updateDriver(ride: Ride): Int
   fun updateFare(ride: Ride): Int

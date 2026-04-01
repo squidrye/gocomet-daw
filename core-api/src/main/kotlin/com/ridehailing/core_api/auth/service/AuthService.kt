@@ -4,6 +4,7 @@ import com.ridehailing.core_api.auth.dto.AuthResponse
 import com.ridehailing.core_api.auth.dto.LoginRequest
 import com.ridehailing.core_api.auth.dto.RegisterRequest
 import com.ridehailing.core_api.common.util.IdempotencyHash
+import com.ridehailing.core_api.common.util.InputSanitizer
 import com.ridehailing.core_api.common.exception.AppException
 import com.ridehailing.core_api.common.exception.AppExceptionTypes
 import com.ridehailing.core_api.common.model.Role
@@ -41,6 +42,8 @@ open class AuthService {
     if (request.role == null) errors.add("role is required")
     if (request.name.isNullOrBlank()) errors.add("name is required")
     if (request.role == Role.DRIVER && request.vehicleMake.isNullOrBlank()) errors.add("vehicleMake is required for drivers")
+    if (InputSanitizer.containsSuspiciousContent(request.name)) errors.add("name contains invalid characters")
+    if (InputSanitizer.containsSuspiciousContent(request.vehicleMake)) errors.add("vehicleMake contains invalid characters")
     if (errors.isNotEmpty()) throw AppException(AppExceptionTypes.VALIDATION_FAILED, errors)
 
     if (authMapper.getByEmail(request.email!!) != null) {
@@ -51,8 +54,8 @@ open class AuthService {
       email = request.email
       passwordHash = passwordEncoder.encode(request.password)
       setRole(request.role!!)
-      name = request.name
-      vehicleMake = request.vehicleMake
+      name = InputSanitizer.sanitize(request.name)
+      vehicleMake = InputSanitizer.sanitize(request.vehicleMake)
       hash = IdempotencyHash.generate(request.email)
     }
     authMapper.insert(user)

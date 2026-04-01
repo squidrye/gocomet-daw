@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "required": ["pickupLat", "pickupLng", "dropoffLat", "dropoffLng"],
+  "properties": {
+    "pickupLat": { "type": "number", "minimum": -90, "maximum": 90 },
+    "pickupLng": { "type": "number", "minimum": -180, "maximum": 180 },
+    "dropoffLat": { "type": "number", "minimum": -90, "maximum": 90 },
+    "dropoffLng": { "type": "number", "minimum": -180, "maximum": 180 }
+  },
+  "additionalProperties": false
+}

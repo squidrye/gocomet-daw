@@ -21,6 +21,9 @@ open class SecurityConfig {
   @Autowired
   private lateinit var rateLimitFilter: RateLimitFilter
 
+  @Autowired
+  private lateinit var securityHeadersFilter: SecurityHeadersFilter
+
   @Bean
   open fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
     http
@@ -36,6 +39,7 @@ open class SecurityConfig {
       }
       .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
       .addFilterBefore(rateLimitFilter, JwtAuthFilter::class.java)
+      .addFilterAfter(securityHeadersFilter, JwtAuthFilter::class.java)
     return http.build()
   }
 

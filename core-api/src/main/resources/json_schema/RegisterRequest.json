@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "required": ["email", "password", "role", "name"],
+  "properties": {
+    "email": { "type": "string", "format": "email", "maxLength": 255 },
+    "password": { "type": "string", "minLength": 8, "maxLength": 128 },
+    "role": { "type": "string", "enum": ["RIDER", "DRIVER"] },
+    "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "vehicleMake": { "type": "string", "maxLength": 100 }
+  },
+  "additionalProperties": false
+}

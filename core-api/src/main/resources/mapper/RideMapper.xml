@@ -21,6 +21,15 @@
     WHERE id = #{id}::uuid AND delete_info IS NULL
   </select>
 
+  <select id="getByIdForUpdate" resultType="com.ridehailing.core_api.common.model.Ride">
+    SELECT id, rider_id, driver_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+           status_type_id, estimated_fare, final_fare, surge_multiplier, search_radius_km,
+           started_at, completed_at, cancelled_at, created_at, updated_at
+    FROM rides
+    WHERE id = #{id}::uuid AND delete_info IS NULL
+    FOR UPDATE
+  </select>
+
   <update id="updateStatus" parameterType="com.ridehailing.core_api.common.model.Ride">
     UPDATE rides
     SET status_type_id = #{statusTypeId},

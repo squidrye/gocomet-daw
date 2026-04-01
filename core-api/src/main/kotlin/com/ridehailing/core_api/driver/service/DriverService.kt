@@ -188,7 +188,7 @@ open class DriverService {
       throw AppException(AppExceptionTypes.DRIVER_NOT_AVAILABLE)
     }
 
-    val ride = rideMapper.getById(rideId) ?: throw AppException(AppExceptionTypes.RIDE_NOT_FOUND)
+    val ride = rideMapper.getByIdForUpdate(rideId) ?: throw AppException(AppExceptionTypes.RIDE_NOT_FOUND)
 
     if (!RideStateMachine.canTransition(ride.status!!, RideStatus.ACCEPTED)) {
       throw AppException(AppExceptionTypes.RIDE_ALREADY_TAKEN)
